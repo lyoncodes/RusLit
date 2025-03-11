@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Login{% endblock %}
+{% block title %}Sign Up{% endblock %}
 
 {% block content %}
 <style>
@@ -19,27 +19,30 @@
         font-weight: bold;
     }
     input[type="text"],
+    input[type="email"],
     input[type="password"],
     input[type="submit"] {
         padding: 10px;
         border: 1px solid #ccc;
         border-radius: 5px;
     }
-    .signup-link {
-        text-align: center;
-        margin-top: 20px;
-    }
 </style>
-<form method="POST" action="{{ url_for('login') }}">
+<form method="POST" action="{{ url_for('signup') }}">
+    <label for="first_name">First Name:</label>
+    <input type="text" id="first_name" name="first_name" required>
+    
+    <label for="last_name">Last Name:</label>
+    <input type="text" id="last_name" name="last_name" required>
+    
     <label for="username">Username:</label>
     <input type="text" id="username" name="username" required>
+    
+    <label for="email">Email:</label>
+    <input type="email" id="email" name="email" required>
     
     <label for="password">Password:</label>
     <input type="password" id="password" name="password" required>
     
-    <button type="submit">Login</button>
+    <button type="submit">Sign Up</button>
 </form>
-<div class="signup-link">
-    <a href="{{ url_for('signup') }}">Create Account</a>
-</div>
 {% endblock %}

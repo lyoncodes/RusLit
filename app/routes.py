@@ -1,9 +1,11 @@
 import os
-from flask import render_template, request, redirect, url_for, jsonify, Blueprint
-from . import app
+from flask import render_template, request, redirect, url_for, jsonify, Blueprint, flash
+from . import app, db  # Import db
 from openai import OpenAI
 from dotenv import load_dotenv
-from .models import User # Import the User model
+from .models import User, Book, users_books  # Import the User, Book models and linking table
+from werkzeug.security import generate_password_hash
+
 # Load environment variables from .env file
 load_dotenv()
 user_bp = Blueprint('user_bp', __name__)
@@ -35,6 +37,39 @@ def login():
         # For example, you can access form data using request.form
         return redirect(url_for('home'))  # Redirect after submission
     return render_template('login.html')
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        
+        # Hash the password
+        password_hash = generate_password_hash(password)
+        
+        # Create a new user
+        new_user = User(
+            full_name=f"{first_name} {last_name}",
+            username=username,
+            email=email,
+            password_hash=password_hash
+        )
+        
+        # Add the new user to the database
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            flash('User created successfully!')
+            return redirect(url_for('login'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error creating user: {str(e)}')
+            return redirect(url_for('signup'))
+    
+    return render_template('signup.html')
 
 @app.route('/submit_form', methods=['POST'])
 def submit_form():
@@ -131,5 +166,15 @@ def get_user(email):
             "is_admin": user.is_admin,
             "created_at": user.created_at.isoformat()
         }
+    else:
+        return {"error": "User not found"}, 404
+
+@user_bp.route('/user/<id>/books', methods=['GET'])
+def get_user_books(id):
+    user = User.query.get(id)
+    if user:
+        books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == id).all()
+        books_data = [{"id": book.id, "isbn": book.isbn, "title": book.title, "author": book.author} for book in books]
+        return jsonify(books_data)
     else:
         return {"error": "User not found"}, 404
