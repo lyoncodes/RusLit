@@ -33,7 +33,7 @@
         label {
             font-weight: bold;
         }
-        .form-group {
+        .form-group, .form-group-fileupload {
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -78,7 +78,7 @@
                 <input type="radio" name="satire" value="satirical"> Satirical
             </div>
         </div>
-        <div class="form-group">
+        <div class="form-group-fileupload">
             <label for="file">Upload a file:</label>
             <input type="file" name="file">
         </div>
@@ -89,6 +89,17 @@
 
     {% block scripts %}
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const isLoggedIn = "{{ true if user else false | tojson }}";
+            const formGroups = document.querySelectorAll('.form-group');
+            console.log(isLoggedIn)
+            if (isLoggedIn) {
+                formGroups.forEach(group => {
+                    group.style.display = 'none';
+                });
+            }
+        });
+
         document.getElementById('literature-form').addEventListener('submit', async function(event) {
             event.preventDefault();
             const formData = new FormData(this);

@@ -113,10 +113,45 @@ def logout():
     flash('You have been logged out.')
     return redirect(url_for('home'))
 
-@app.route('/user/<id>/profile')
+@app.route('/user/<id>/profile', methods=['GET', 'POST'])
 @login_required
 def profile(id):
     user = User.query.get(id)
+    if request.method == 'POST':
+        genre = request.form.get('genre')
+        novel = request.form.get('novel') == 'on'
+        short_story = request.form.get('short_story') == 'on'
+        poetry = request.form.get('poetry') == 'on'
+        satire = request.form.get('satire') == 'on'
+        romance = request.form.get('romance') == 'on'
+        psychological = request.form.get('psychological') == 'on'
+        spiritual = request.form.get('spiritual') == 'on'
+        
+        profile = Profile.query.filter_by(user_id=current_user.id).first()
+        if profile:
+            profile.novel = novel
+            profile.short_story = short_story
+            profile.poetry = poetry
+            profile.satire = satire
+            profile.romance = romance
+            profile.psychological = psychological
+            profile.spiritual = spiritual
+        else:
+            profile = Profile(
+                user_id=current_user.id,
+                novel=novel,
+                short_story=short_story,
+                poetry=poetry,
+                satire=satire,
+                romance=romance,
+                psychological=psychological,
+                spiritual=spiritual
+            )
+            db.session.add(profile)
+        db.session.commit()
+        flash('Profile updated successfully!', 'success')
+        return redirect(url_for('profile', id=current_user.id))
+    
     if user:
         return render_template('profile.html', user=user)
     else:
@@ -229,3 +264,5 @@ def get_user_books(id):
         return jsonify(books_data)
     else:
         return {"error": "User not found"}, 404
+
+from app.models import Profile

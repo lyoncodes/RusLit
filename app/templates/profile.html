@@ -11,5 +11,73 @@
     <p><strong>Admin:</strong> {{ user.is_admin }}</p>
     <p><strong>Created At:</strong> {{ user.created_at }}</p>
     <p><strong>Last Login:</strong> {{ user.last_login }}</p>
+    <form action="{{ url_for('profile', id=user.id) }}" method="POST">
+        <label>Customize your search queries by choosing your areas of academic and creative interest</label><br>
+        <div class="genre-grid">
+            <div class="genre-item">
+                <input type="checkbox" id="novel" name="genre" value="Novel">
+                <label for="novel">Novel</label>
+            </div>
+            <div class="genre-item">
+                <input type="checkbox" id="short-story" name="genre" value="Short-Story">
+                <label for="short-story">Short-Story</label>
+            </div>
+            <div class="genre-item">
+                <input type="checkbox" id="poetry" name="genre" value="Poetry">
+                <label for="poetry">Poetry</label>
+            </div>
+            <div class="genre-item">
+                <input type="checkbox" id="satire" name="genre" value="Satire">
+                <label for="satire">Satire</label>
+            </div>
+            <div class="genre-item">
+                <input type="checkbox" id="romance" name="genre" value="Romance">
+                <label for="romance">Romance</label>
+            </div>
+            <div class="genre-item">
+                <input type="checkbox" id="psychological" name="genre" value="Psychological">
+                <label for="psychological">Psychological</label>
+            </div>
+            <div class="genre-item">
+                <input type="checkbox" id="spiritual" name="genre" value="Spiritual">
+                <label for="spiritual">Spiritual</label>
+            </div>
+        </div>
+        <button type="submit">Save</button>
+    </form>
 </div>
+
+<style>
+    .genre-grid {
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        justify-content: center;
+        width: 33%;
+        column-gap: 10px;
+        row-gap: 10px;
+    }
+    .genre-item {
+        border: 1px solid #00bcd4;
+        border-radius: 8px;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.3s, border-color 0.3s;
+    }
+    .genre-item input[type="checkbox"] {
+        margin-right: 10px;
+    }
+    .genre-item:hover {
+        background-color: #e0f7fa;
+        border-color: #008ba3;
+        cursor: pointer;
+    }
+    form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+</style>
 {% endblock %}

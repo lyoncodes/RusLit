@@ -42,6 +42,22 @@ class Book(db.Model):
     def __repr__(self):
         return f"<Book {self.title} by {self.author}>"
 
+class Profile(db.Model):
+    __tablename__ = 'profiles'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=False)
+    novel: Mapped[bool] = mapped_column(default=False)
+    short_story: Mapped[bool] = mapped_column(default=False)
+    poetry: Mapped[bool] = mapped_column(default=False)
+    satire: Mapped[bool] = mapped_column(default=False)
+    romance: Mapped[bool] = mapped_column(default=False)
+    psychological: Mapped[bool] = mapped_column(default=False)
+    spiritual: Mapped[bool] = mapped_column(default=False)
+
+    def __repr__(self):
+        return f"<Profile {self.user_id}>"
+
 users_books = Table(
     'users_books',
     db.metadata,
@@ -50,4 +66,4 @@ users_books = Table(
 )
 
 # Export user_books
-__all__ = ['User', 'Book', 'users_books']
+__all__ = ['User', 'Book', 'Profile', 'users_books']
