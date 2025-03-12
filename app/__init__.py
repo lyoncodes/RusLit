@@ -6,14 +6,16 @@ from sqlalchemy.orm import DeclarativeBase
 
 load_dotenv()
 pw = os.getenv("DB_CONN")
+secret_key = os.getenv("SECRET_KEY", "your-default-secret-key")
 
 class Base(DeclarativeBase):
     pass
 # Initialize the database
 db = SQLAlchemy(model_class=Base)
 
-
 app = Flask(__name__)
+# Set the secret key
+app.config['SECRET_KEY'] = secret_key
 # Example: PostgreSQL connection URI
 app.config['SQLALCHEMY_DATABASE_URI'] = pw
 # Disable track modifications if you don't need it
