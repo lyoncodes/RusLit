@@ -1,5 +1,5 @@
 from . import db
-from sqlalchemy import Integer, String, Table, Column, ForeignKey
+from sqlalchemy import Integer, String, Table, Column, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 
@@ -47,13 +47,29 @@ class Profile(db.Model):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=False)
-    novel: Mapped[bool] = mapped_column(default=False)
-    short_story: Mapped[bool] = mapped_column(default=False)
-    poetry: Mapped[bool] = mapped_column(default=False)
-    satire: Mapped[bool] = mapped_column(default=False)
-    romance: Mapped[bool] = mapped_column(default=False)
-    psychological: Mapped[bool] = mapped_column(default=False)
-    spiritual: Mapped[bool] = mapped_column(default=False)
+    genre_novel: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_short_story: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_poetry: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_satire: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_romance: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_psychological: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_spiritual: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_istj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_isfj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_infj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_intj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_istp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_isfp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_infp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_intp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_estp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_esfp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_enfp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_entp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_estj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_esfj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_enfj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_entj: Mapped[bool] = mapped_column(Boolean, default=False)
 
     def __repr__(self):
         return f"<Profile {self.user_id}>"
