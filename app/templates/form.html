@@ -24,8 +24,8 @@
             margin: 0 auto;
             padding: 20px;
             border: 1px solid #ccc;
-            border-radius: 10px;
-            background-color: #f9f9f9;
+            border-radius: 2px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -45,9 +45,32 @@
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
         }
         input[type="radio"] {
             margin-right: 10px;
+        }
+        .radio-item {
+            border: 1px solid #00bcd4;
+            border-radius: 2px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .radio-item:hover {
+            background-color: #e0f7fa;
+            border-color: #008ba3;
+            cursor: pointer;
+        }
+        .header-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .header-logo img {
+            width: 150px;
+            height: auto;
         }
     </style>
 </head>
@@ -55,29 +78,39 @@
     {% extends "base.html" %}
 
     {% block content %}
-    <h1>Guide to Russian Lit</h1>
+    <div class="header-logo">
+        <img src="{{ url_for('static', filename='assets/logo.svg') }}" alt="Logo">
+    </div>
     <form id="literature-form" action="{{ url_for('home') }}" method="post" enctype="multipart/form-data">
+        {% if not current_user.is_authenticated %}
         <div class="form-group">
             <label for="classification">Novel or short story?</label>
-            <div>
+            <div class="radio-item">
                 <input type="radio" name="classification" value="novels"> Novels
+            </div>
+            <div class="radio-item">
                 <input type="radio" name="classification" value="short-stories"> Short Stories
             </div>
         </div>
         <div class="form-group">
             <label for="realm">Spirituality or psychology?</label>
-            <div>
+            <div class="radio-item">
                 <input type="radio" name="realm" value="spirituality"> Spirituality
+            </div>
+            <div class="radio-item">
                 <input type="radio" name="realm" value="psychology"> Psychology
             </div>
         </div>
         <div class="form-group">
             <label for="satire">Satire?</label>
-            <div>
+            <div class="radio-item">
                 <input type="radio" name="satire" value="nonsatirical"> Nonsatirical
+            </div>
+            <div class="radio-item">
                 <input type="radio" name="satire" value="satirical"> Satirical
             </div>
         </div>
+        {% endif %}
         <div class="form-group-fileupload">
             <label for="file">Upload a file:</label>
             <input type="file" name="file">
@@ -89,17 +122,6 @@
 
     {% block scripts %}
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const isLoggedIn = "{{ true if user else false | tojson }}";
-            const formGroups = document.querySelectorAll('.form-group');
-            console.log(isLoggedIn)
-            if (isLoggedIn) {
-                formGroups.forEach(group => {
-                    group.style.display = 'none';
-                });
-            }
-        });
-
         document.getElementById('literature-form').addEventListener('submit', async function(event) {
             event.preventDefault();
             const formData = new FormData(this);
