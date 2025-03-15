@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<div class="profile">
+    <h1>{{ user.full_name }}'s Profile</h1>
+    <p><strong>Username:</strong> {{ user.username }}</p>
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    <p><strong>Active:</strong> {{ user.is_active }}</p>
+    <p><strong>Admin:</strong> {{ user.is_admin }}</p>
+    <p><strong>Created At:</strong> {{ user.created_at }}</p>
+    <p><strong>Last Login:</strong> {{ user.last_login }}</p>
+    <form action="{{ url_for('profile', id=user.id) }}" method="POST" class="centered-form">
+        <label>Customize your search queries by choosing your areas of academic and creative interest</label><br>
+        <div class="form-sections">
+            <div class="checkbox-section">
+                <h3>Genres</h3>
+                <div class="checkbox-grid">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="novel" name="genre" value="Novel" {% if user.genre_novel %}checked{% endif %}>
+                        <label for="novel">Novel</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="short-story" name="genre" value="Short-Story" {% if user.genre_short_story %}checked{% endif %}>
+                        <label for="short-story">Short-Story</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="poetry" name="genre" value="Poetry" {% if user.genre_poetry %}checked{% endif %}>
+                        <label for="poetry">Poetry</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="satire" name="genre" value="Satire" {% if user.genre_satire %}checked{% endif %}>
+                        <label for="satire">Satire</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="romance" name="genre" value="Romance" {% if user.genre_romance %}checked{% endif %}>
+                        <label for="romance">Romance</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="psychological" name="genre" value="Psychological" {% if user.genre_psychological %}checked{% endif %}>
+                        <label for="psychological">Psychological</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="spiritual" name="genre" value="Spiritual" {% if user.genre_spiritual %}checked{% endif %}>
+                        <label for="spiritual">Spiritual</label>
+                    </div>
+                </div>
+            </div>
+            <div class="checkbox-section">
+                <h3>MBTI</h3>
+                <div class="checkbox-grid">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="istj" name="mbti" value="ISTJ" {% if user.mbti_istj %}checked{% endif %}>
+                        <label for="istj">ISTJ</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="isfj" name="mbti" value="ISFJ" {% if user.mbti_isfj %}checked{% endif %}>
+                        <label for="isfj">ISFJ</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="infj" name="mbti" value="INFJ" {% if user.mbti_infj %}checked{% endif %}>
+                        <label for="infj">INFJ</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="intj" name="mbti" value="INTJ" {% if user.mbti_intj %}checked{% endif %}>
+                        <label for="intj">INTJ</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="istp" name="mbti" value="ISTP" {% if user.mbti_istp %}checked{% endif %}>
+                        <label for="istp">ISTP</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="isfp" name="mbti" value="ISFP" {% if user.mbti_isfp %}checked{% endif %}>
+                        <label for="isfp">ISFP</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="infp" name="mbti" value="INFP" {% if user.mbti_infp %}checked{% endif %}>
+                        <label for="infp">INFP</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="intp" name="mbti" value="INTP" {% if user.mbti_intp %}checked{% endif %}>
+                        <label for="intp">INTP</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="estp" name="mbti" value="ESTP" {% if user.mbti_estp %}checked{% endif %}>
+                        <label for="estp">ESTP</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="esfp" name="mbti" value="ESFP" {% if user.mbti_esfp %}checked{% endif %}>
+                        <label for="esfp">ESFP</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="enfp" name="mbti" value="ENFP" {% if user.mbti_enfp %}checked{% endif %}>
+                        <label for="enfp">ENFP</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="entp" name="mbti" value="ENTP" {% if user.mbti_entp %}checked{% endif %}>
+                        <label for="entp">ENTP</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="estj" name="mbti" value="ESTJ" {% if user.mbti_estj %}checked{% endif %}>
+                        <label for="estj">ESTJ</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="esfj" name="mbti" value="ESFJ" {% if user.mbti_esfj %}checked{% endif %}>
+                        <label for="esfj">ESFJ</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="enfj" name="mbti" value="ENFJ" {% if user.mbti_enfj %}checked{% endif %}>
+                        <label for="enfj">ENFJ</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="entj" name="mbti" value="ENTJ" {% if user.mbti_entj %}checked{% endif %}>
+                        <label for="entj">ENTJ</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button type="submit">Save</button>
+    </form>
+</div>
+
+<style>
+    .centered-form {
+        width: 33%;
+        margin: 0 auto;
+    }
+    .form-sections {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+    }
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    .checkbox-item {
+        border: 1px solid #00bcd4;
+        border-radius: 2px;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        transition: background-color 0.3s, border-color 0.3s;
+    }
+    .checkbox-item input[type="checkbox"] {
+        margin-right: 10px;
+    }
+    .checkbox-item:hover {
+        background-color: #e0f7fa;
+        border-color: #008ba3;
+        cursor: pointer;
+    }
+    form {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+</style>
+{% endblock %}

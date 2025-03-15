@@ -1,5 +1,5 @@
 from . import db
-from sqlalchemy import Integer, String, Table, Column, ForeignKey
+from sqlalchemy import Integer, String, Table, Column, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 
@@ -7,6 +7,7 @@ class User(db.Model):
     __tablename__ = 'users'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)  # Add username field
     email: Mapped[str] = mapped_column(String, nullable=False)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     full_name: Mapped[str] = mapped_column(String, nullable=False)
@@ -19,6 +20,17 @@ class User(db.Model):
     def __repr__(self):
         return f"<User {self.username}>"
 
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def get_id(self):
+        return str(self.id)
+
 class Book(db.Model):
     __tablename__ = 'books'
 
@@ -30,6 +42,38 @@ class Book(db.Model):
     def __repr__(self):
         return f"<Book {self.title} by {self.author}>"
 
+class Profile(db.Model):
+    __tablename__ = 'profiles'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=False)
+    genre_novel: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_short_story: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_poetry: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_satire: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_romance: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_psychological: Mapped[bool] = mapped_column(Boolean, default=False)
+    genre_spiritual: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_istj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_isfj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_infj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_intj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_istp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_isfp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_infp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_intp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_estp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_esfp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_enfp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_entp: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_estj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_esfj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_enfj: Mapped[bool] = mapped_column(Boolean, default=False)
+    mbti_entj: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    def __repr__(self):
+        return f"<Profile {self.user_id}>"
+
 users_books = Table(
     'users_books',
     db.metadata,
@@ -38,4 +82,4 @@ users_books = Table(
 )
 
 # Export user_books
-__all__ = ['User', 'Book', 'users_books']
+__all__ = ['User', 'Book', 'Profile', 'users_books']

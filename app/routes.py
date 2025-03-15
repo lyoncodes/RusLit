@@ -1,10 +1,15 @@
 import os
 from flask import render_template, request, redirect, url_for, jsonify, Blueprint, flash
+from flask_login import login_user, logout_user, login_required, LoginManager, current_user
 from . import app, db  # Import db
 from openai import OpenAI
 from dotenv import load_dotenv
 from .models import User, Book, users_books  # Import the User, Book models and linking table
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
+from urllib.parse import urlparse, urljoin
+
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -18,6 +23,15 @@ client = OpenAI(
     api_key=token,
 )
 
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(user_id)
+
+def is_safe_url(target):
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
+
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'POST':
@@ -27,15 +41,35 @@ def home():
     return render_template('form.html')
 
 @app.route('/instructions', methods=['GET'])
+@login_required
 def instructions():
     return render_template('instructions.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # Handle login form submission here
-        # For example, you can access form data using request.form
-        return redirect(url_for('home'))  # Redirect after submission
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+        
+        if user:
+            if check_password_hash(user.password_hash, password):
+                print("Password hash matches")
+                login_user(user)
+                flash('Logged in successfully.')
+                
+                next = request.args.get('next')
+                if not is_safe_url(next):
+                    return "Record not found", 400
+                
+                return redirect(next or url_for('home'))
+            else:
+                print("Password hash does not match")
+        else:
+            print("User not found")
+        
+        flash('Invalid username or password.')
+    
     return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -47,8 +81,9 @@ def signup():
         email = request.form['email']
         password = request.form['password']
         
-        # Hash the password
-        password_hash = generate_password_hash(password)
+        # Hash the password using pbkdf2:sha256
+        password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+        print(f"Generated password hash: {password_hash}")
         
         # Create a new user
         new_user = User(
@@ -63,13 +98,64 @@ def signup():
             db.session.add(new_user)
             db.session.commit()
             flash('User created successfully!')
-            return redirect(url_for('login'))
+            return redirect(url_for('home'))
         except Exception as e:
             db.session.rollback()
             flash(f'Error creating user: {str(e)}')
             return redirect(url_for('signup'))
     
     return render_template('signup.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.')
+    return redirect(url_for('home'))
+
+@app.route('/user/<id>/profile', methods=['GET', 'POST'])
+@login_required
+def profile(id):
+    user = User.query.get(id)
+    if request.method == 'POST':
+        genre = request.form.get('genre')
+        novel = request.form.get('novel') == 'on'
+        short_story = request.form.get('short_story') == 'on'
+        poetry = request.form.get('poetry') == 'on'
+        satire = request.form.get('satire') == 'on'
+        romance = request.form.get('romance') == 'on'
+        psychological = request.form.get('psychological') == 'on'
+        spiritual = request.form.get('spiritual') == 'on'
+        
+        profile = Profile.query.filter_by(user_id=current_user.id).first()
+        if profile:
+            profile.novel = novel
+            profile.short_story = short_story
+            profile.poetry = poetry
+            profile.satire = satire
+            profile.romance = romance
+            profile.psychological = psychological
+            profile.spiritual = spiritual
+        else:
+            profile = Profile(
+                user_id=current_user.id,
+                novel=novel,
+                short_story=short_story,
+                poetry=poetry,
+                satire=satire,
+                romance=romance,
+                psychological=psychological,
+                spiritual=spiritual
+            )
+            db.session.add(profile)
+        db.session.commit()
+        flash('Profile updated successfully!', 'success')
+        return redirect(url_for('profile', id=current_user.id))
+    
+    if user:
+        return render_template('profile.html', user=user)
+    else:
+        return {"error": "User not found"}, 404
 
 @app.route('/submit_form', methods=['POST'])
 def submit_form():
@@ -178,3 +264,5 @@ def get_user_books(id):
         return jsonify(books_data)
     else:
         return {"error": "User not found"}, 404
+
+from app.models import Profile
