@@ -11,6 +11,20 @@
     <p><strong>Admin:</strong> {{ user.is_admin }}</p>
     <p><strong>Created At:</strong> {{ user.created_at }}</p>
     <p><strong>Last Login:</strong> {{ user.last_login }}</p>
+    <div>
+        <h3>Your Titles</h3>
+        {% if books and books|length > 0 %}
+        <ul>
+            {% for book in books %}
+            <li>
+                <strong>{{ book.title }}</strong> by {{ book.author }} (ISBN: {{ book.isbn }})
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>You have no books saved to your profile.</p>
+        {% endif %}
+    </div>
     <form action="{{ url_for('profile', id=user.id) }}" method="POST" class="centered-form">
         <label>Customize your search queries by choosing your areas of academic and creative interest</label><br>
         <div class="form-sections">
@@ -18,32 +32,24 @@
                 <h3>Genres</h3>
                 <div class="checkbox-grid">
                     <div class="checkbox-item">
-                        <input type="checkbox" id="novel" name="genre" value="Novel" {% if user.genre_novel %}checked{% endif %}>
+                        <input type="checkbox" id="novel" name="novel" {% if profile and profile.genre_novel %}checked{% endif %}>
                         <label for="novel">Novel</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="short-story" name="genre" value="Short-Story" {% if user.genre_short_story %}checked{% endif %}>
+                        <input type="checkbox" id="short-story" name="short_story" {% if profile and profile.genre_short_story %}checked{% endif %}>
                         <label for="short-story">Short-Story</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="poetry" name="genre" value="Poetry" {% if user.genre_poetry %}checked{% endif %}>
+                        <input type="checkbox" id="poetry" name="poetry" {% if profile and profile.genre_poetry %}checked{% endif %}>
                         <label for="poetry">Poetry</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="satire" name="genre" value="Satire" {% if user.genre_satire %}checked{% endif %}>
+                        <input type="checkbox" id="satire" name="satire" {% if profile and profile.genre_satire %}checked{% endif %}>
                         <label for="satire">Satire</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="romance" name="genre" value="Romance" {% if user.genre_romance %}checked{% endif %}>
+                        <input type="checkbox" id="romance" name="romance" {% if profile and profile.genre_romance %}checked{% endif %}>
                         <label for="romance">Romance</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="psychological" name="genre" value="Psychological" {% if user.genre_psychological %}checked{% endif %}>
-                        <label for="psychological">Psychological</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="spiritual" name="genre" value="Spiritual" {% if user.genre_spiritual %}checked{% endif %}>
-                        <label for="spiritual">Spiritual</label>
                     </div>
                 </div>
             </div>
@@ -51,68 +57,101 @@
                 <h3>MBTI</h3>
                 <div class="checkbox-grid">
                     <div class="checkbox-item">
-                        <input type="checkbox" id="istj" name="mbti" value="ISTJ" {% if user.mbti_istj %}checked{% endif %}>
+                        <input type="checkbox" id="istj" name="istj" value="istj" {% if profile.mbti_istj %}checked{% endif %}>
                         <label for="istj">ISTJ</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="isfj" name="mbti" value="ISFJ" {% if user.mbti_isfj %}checked{% endif %}>
+                        <input type="checkbox" id="isfj" name="isfj" value="isfj" {% if profile.mbti_isfj %}checked{% endif %}>
                         <label for="isfj">ISFJ</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="infj" name="mbti" value="INFJ" {% if user.mbti_infj %}checked{% endif %}>
+                        <input type="checkbox" id="infj" name="injf" value="injf" {% if profile.mbti_infj %}checked{% endif %}>
                         <label for="infj">INFJ</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="intj" name="mbti" value="INTJ" {% if user.mbti_intj %}checked{% endif %}>
+                        <input type="checkbox" id="intj" name="intj" value="intj" {% if profile.mbti_intj %}checked{% endif %}>
                         <label for="intj">INTJ</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="istp" name="mbti" value="ISTP" {% if user.mbti_istp %}checked{% endif %}>
+                        <input type="checkbox" id="istp" name="istp" value="ISTP" {% if profile.mbti_istp %}checked{% endif %}>
                         <label for="istp">ISTP</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="isfp" name="mbti" value="ISFP" {% if user.mbti_isfp %}checked{% endif %}>
+                        <input type="checkbox" id="isfp" name="isfp" value="ISFP" {% if profile.mbti_isfp %}checked{% endif %}>
                         <label for="isfp">ISFP</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="infp" name="mbti" value="INFP" {% if user.mbti_infp %}checked{% endif %}>
+                        <input type="checkbox" id="infp" name="infp" value="INFP" {% if profile.mbti_infp %}checked{% endif %}>
                         <label for="infp">INFP</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="intp" name="mbti" value="INTP" {% if user.mbti_intp %}checked{% endif %}>
+                        <input type="checkbox" id="intp" name="intp" value="INTP" {% if profile.mbti_intp %}checked{% endif %}>
                         <label for="intp">INTP</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="estp" name="mbti" value="ESTP" {% if user.mbti_estp %}checked{% endif %}>
+                        <input type="checkbox" id="estp" name="estp" value="ESTP" {% if profile.mbti_estp %}checked{% endif %}>
                         <label for="estp">ESTP</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="esfp" name="mbti" value="ESFP" {% if user.mbti_esfp %}checked{% endif %}>
+                        <input type="checkbox" id="esfp" name="esfp" value="ESFP" {% if profile.mbti_esfp %}checked{% endif %}>
                         <label for="esfp">ESFP</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="enfp" name="mbti" value="ENFP" {% if user.mbti_enfp %}checked{% endif %}>
+                        <input type="checkbox" id="enfp" name="enfp" value="ENFP" {% if profile.mbti_enfp %}checked{% endif %}>
                         <label for="enfp">ENFP</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="entp" name="mbti" value="ENTP" {% if user.mbti_entp %}checked{% endif %}>
+                        <input type="checkbox" id="entp" name="entp" value="ENTP" {% if profile.mbti_entp %}checked{% endif %}>
                         <label for="entp">ENTP</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="estj" name="mbti" value="ESTJ" {% if user.mbti_estj %}checked{% endif %}>
+                        <input type="checkbox" id="estj" name="estj" value="ESTJ" {% if profile.mbti_estj %}checked{% endif %}>
                         <label for="estj">ESTJ</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="esfj" name="mbti" value="ESFJ" {% if user.mbti_esfj %}checked{% endif %}>
+                        <input type="checkbox" id="esfj" name="esfj" value="ESFJ" {% if profile.mbti_esfj %}checked{% endif %}>
                         <label for="esfj">ESFJ</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="enfj" name="mbti" value="ENFJ" {% if user.mbti_enfj %}checked{% endif %}>
+                        <input type="checkbox" id="enfj" name="enfj" value="ENFJ" {% if profile.mbti_enfj %}checked{% endif %}>
                         <label for="enfj">ENFJ</label>
                     </div>
                     <div class="checkbox-item">
-                        <input type="checkbox" id="entj" name="mbti" value="ENTJ" {% if user.mbti_entj %}checked{% endif %}>
+                        <input type="checkbox" id="entj" name="entj" value="ENTJ" {% if profile.mbti_entj %}checked{% endif %}>
                         <label for="entj">ENTJ</label>
+                    </div>
+                </div>
+            </div>
+            <div class="checkbox-section">
+                <h3>Interest</h3>
+                <div class="checkbox-grid">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="psychological" name="psychological" {% if profile and profile.psychological %}checked{% endif %}>
+                        <label for="psychological">Psychological</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="spiritual" name="spiritual" {% if profile and profile.interest_spiritual %}checked{% endif %}>
+                        <label for="spiritual">Spiritual</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="social" name="social" {% if profile and profile.interest_social %}checked{% endif %}>
+                        <label for="social">Social</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="existential" name="existential" {% if profile and profile.interest_existential %}checked{% endif %}>
+                        <label for="existential">Existential</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="political" name="political" {% if profile and profile.interest_political %}checked{% endif %}>
+                        <label for="political">Political</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="nihilistic" name="nihilistic" {% if profile and profile.interest_nihilistic %}checked{% endif %}>
+                        <label for="nihilistic">Nihilistic</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="ethical" name="ethical" {% if profile and profile.interest_ethical %}checked{% endif %}>
+                        <label for="ethical">Ethical</label>
                     </div>
                 </div>
             </div>

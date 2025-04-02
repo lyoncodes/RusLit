@@ -70,6 +70,13 @@ class Profile(db.Model):
     mbti_esfj: Mapped[bool] = mapped_column(Boolean, default=False)
     mbti_enfj: Mapped[bool] = mapped_column(Boolean, default=False)
     mbti_entj: Mapped[bool] = mapped_column(Boolean, default=False)
+    interest_psychological: Mapped[bool] = mapped_column(Boolean, default=False)
+    interest_spiritual: Mapped[bool] = mapped_column(Boolean, default=False)
+    interest_social: Mapped[bool] = mapped_column(Boolean, default=False)
+    interest_existential: Mapped[bool] = mapped_column(Boolean, default=False)
+    interest_political: Mapped[bool] = mapped_column(Boolean, default=False)
+    interest_nihilistic: Mapped[bool] = mapped_column(Boolean, default=False)
+    interest_ethical: Mapped[bool] = mapped_column(Boolean, default=False)
 
     def __repr__(self):
         return f"<Profile {self.user_id}>"

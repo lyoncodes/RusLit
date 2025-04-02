@@ -3,10 +3,10 @@ from dotenv import load_dotenv
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-
+# postgresql://[user[:password]@][host][:port][/dbname][?param1=value1&param2=value2]
 load_dotenv()
-pw = os.getenv("DB_CONN")
-secret_key = os.getenv("SECRET_KEY", "your-default-secret-key")
+pw = os.environ.get("DATABASE_URI")
+secret_key = os.environ.get("SECRET_KEY")
 
 class Base(DeclarativeBase):
     pass

@@ -72,45 +72,199 @@
             width: 150px;
             height: auto;
         }
+        .profile-overview-container {
+            display: flex;
+            justify-content: flex-start;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+        .profile-overview {
+            width: 33%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .profile-overview .box {
+            align-items: center;
+            border-radius: 2px;
+            box-sizing: border-box;
+            display: flex;
+            font-size: 14px;
+            justify-content: center;
+            padding: 10px;
+            text-align: center;
+            width: calc(25% - 65px);
+        }
+        .box {
+            width: 30px;
+        }
+        .genre {
+            border: 1px solid #ffe4e1; /* Pastel pink */
+            background-color: #ffe4e1; /* Pastel pink */
+            color: #333;
+        }
+        .theme {
+            border: 1px solid #e0f7fa; /* Pastel blue */
+            background-color: #e0f7fa; /* Pastel blue */
+            color: #333;
+        }
+        .personality {
+            border: 1px solid #e6e6fa; /* Pastel lavender */
+            background-color: #e6e6fa; /* Pastel lavender */
+            color: #333;
+        }
+        .interest {
+            border: 1px solid #f0fff0; /* Pastel mint */
+            background-color: #f0fff0; /* Pastel mint */
+            color: #333;
+        }
+        h3 > a {
+            color: #333;
+            text-decoration: none;
+        }
+        h3 > a:hover {
+            color: #6254d2; /* Light gray background on hover */
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(14px);
+        }
     </style>
 </head>
 <body>
     {% extends "base.html" %}
 
+    {% block title %}Form{% endblock %}
+
     {% block content %}
     <div class="header-logo">
         <img src="{{ url_for('static', filename='assets/logo.svg') }}" alt="Logo">
     </div>
+    {% if profile %}
+    <div class="profile-overview-container">
+        <div>
+            <h3>
+                <a href="{{ url_for('profile', id=current_user.id) }}">{{ current_user.username }}</a>
+            </h3>
+        </div>
+        <div class="profile-overview">
+            {% if profile.genre_novel %}<div class="box genre">Novel</div>{% endif %}
+            {% if profile.genre_short_story %}<div class="box genre">Short-Story</div>{% endif %}
+            {% if profile.genre_poetry %}<div class="box genre">Poetry</div>{% endif %}
+            {% if profile.genre_satire %}<div class="box genre">Satire</div>{% endif %}
+            {% if profile.genre_romance %}<div class="box theme">Romance</div>{% endif %}
+            {% if profile.mbti_istj %}<div class="box personality">ISTJ</div>{% endif %}
+            {% if profile.mbti_isfj %}<div class="box personality">ISFJ</div>{% endif %}
+            {% if profile.mbti_infj %}<div class="box personality">INFJ</div>{% endif %}
+            {% if profile.mbti_intj %}<div class="box personality">INTJ</div>{% endif %}
+            {% if profile.mbti_istp %}<div class="box personality">ISTP</div>{% endif %}
+            {% if profile.mbti_isfp %}<div class="box personality">ISFP</div>{% endif %}
+            {% if profile.mbti_infp %}<div class="box personality">INFP</div>{% endif %}
+            {% if profile.mbti_intp %}<div class="box personality">INTP</div>{% endif %}
+            {% if profile.mbti_estp %}<div class="box personality">ESTP</div>{% endif %}
+            {% if profile.mbti_esfp %}<div class="box personality">ESFP</div>{% endif %}
+            {% if profile.mbti_enfp %}<div class="box personality">ENFP</div>{% endif %}
+            {% if profile.mbti_entp %}<div class="box personality">ENTP</div>{% endif %}
+            {% if profile.mbti_estj %}<div class="box personality">ESTJ</div>{% endif %}
+            {% if profile.mbti_esfj %}<div class="box personality">ESFJ</div>{% endif %}
+            {% if profile.mbti_enfj %}<div class="box personality">ENFJ</div>{% endif %}
+            {% if profile.mbti_entj %}<div class="box personality">ENTJ</div>{% endif %}
+            {% if profile.interest_psychological %}<div class="box interest">Psychological</div>{% endif %}
+            {% if profile.interest_spiritual %}<div class="box interest">Spiritual</div>{% endif %}
+            {% if profile.interest_social %}<div class="box interest">Social</div>{% endif %}
+            {% if profile.interest_existential %}<div class="box interest">Existential</div>{% endif %}
+            {% if profile.interest_political %}<div class="box interest">Political</div>{% endif %}
+            {% if profile.interest_nihilistic %}<div class="box interest">Nihilistic</div>{% endif %}
+            {% if profile.interest_ethical %}<div class="box interest">Ethical</div>{% endif %}
+        </div>
+    </div>
+    {% endif %}
     <form id="literature-form" action="{{ url_for('home') }}" method="post" enctype="multipart/form-data">
-        {% if not current_user.is_authenticated %}
+        <div>
+            <label for="">Include User's Bookshelf</label>
+            <label class="switch">
+                <input type="checkbox" name="includeBookshelf" id="includeBookshelf" {% if profile %}checked{% endif %}  >
+                <span class="slider round"></span>
+            </label>
+        </div>
+        <div>
+            <label for="">Classics</label>
+            <label class="switch">
+                <input type="checkbox" name="period" checked >
+                <span class="slider round"></span>
+            </label>
+        </div>
+        <div>
+            <label for="">Contemporary</label>
+            <label class="switch">
+                <input type="checkbox" name="period" unchecked >
+                <span class="slider round"></span>
+            </label>
+        </div>
         <div class="form-group">
-            <label for="classification">Novel or short story?</label>
+            <label for="mediaLength">Time to Read</label>
             <div class="radio-item">
-                <input type="radio" name="classification" value="novels"> Novels
+                <input type="radio" name="mediaLength" value="short"> 1 - 3 hrs
             </div>
             <div class="radio-item">
-                <input type="radio" name="classification" value="short-stories"> Short Stories
+                <input type="radio" name="mediaLength" value="medium"> 3 - 10 hrs
+            </div>
+            <div class="radio-item">
+                <input type="radio" name="mediaLength" value="long"> 10+ hrs
             </div>
         </div>
         <div class="form-group">
-            <label for="realm">Spirituality or psychology?</label>
+            <label for="realm">Tone:</label>
             <div class="radio-item">
-                <input type="radio" name="realm" value="spirituality"> Spirituality
+                <input type="radio" name="realm" value="humorous"> Humourous
             </div>
             <div class="radio-item">
-                <input type="radio" name="realm" value="psychology"> Psychology
-            </div>
-        </div>
-        <div class="form-group">
-            <label for="satire">Satire?</label>
-            <div class="radio-item">
-                <input type="radio" name="satire" value="nonsatirical"> Nonsatirical
+                <input type="radio" name="realm" value="psychological"> Psychological
             </div>
             <div class="radio-item">
-                <input type="radio" name="satire" value="satirical"> Satirical
+                <input type="radio" name="realm" value="tragic"> Tragedy
             </div>
         </div>
-        {% endif %}
         <div class="form-group-fileupload">
             <label for="file">Upload a file:</label>
             <input type="file" name="file">
@@ -127,6 +281,7 @@
             const formData = new FormData(this);
             const responseDiv = document.getElementById('response');
 
+
             const response = await fetch('{{ url_for("submit_form") }}', {
                 method: 'POST',
                 body: formData
@@ -135,8 +290,9 @@
             const result = await response.json();
             responseDiv.innerHTML = result.response.map(item => `
                 <div style="font-family: 'Futura', sans-serif;">
-                    <div class="title">Title: ${item.title}</div>
-                    <div class="description">Description: ${item.description}</div>
+                    <div class="title">${item.title}</div>
+                    <div class="author">${item.author}</div>
+                    <div class="description">${item.description}</div>
                 </div>
             `).join('');
         });
