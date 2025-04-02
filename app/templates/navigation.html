@@ -1,6 +1,15 @@
 <nav>
     <ul>
-        <li id="nav-link"><a href="{{ url_for('login') }}">Login</a></li>
+        <li id="nav-link">
+            {% if current_user.is_authenticated %}
+                <a href="{{ url_for('profile', id=current_user.id) }}">{{ current_user.username }}</a>
+                <div>
+                    <a href="{{ url_for('logout') }}">Logout</a>
+                </div>
+            {% else %}
+                <a href="{{ url_for('login') }}">Login</a>
+            {% endif %}
+        </li>
     </ul>
 </nav>
 <style>
@@ -34,7 +43,9 @@
         if (currentPath === '{{ url_for("login") }}') {
             navLink.innerHTML = '<a href="{{ url_for("home") }}">Home</a>';
         } else if (currentPath === '{{ url_for("signup") }}') {
-            navLink.innerHTML = '<a href="{{ url_for("login") }}">Login</a>';
+            navLink.innerHTML = '<a href="{{ url_for("home") }}">Back to Explorer</a>';
+        } else if (currentPath.startsWith('/user/') && currentPath.endsWith('/profile')) {
+            navLink.innerHTML = '<a href="{{ url_for("home") }}">Home</a>';
         }
     });
 </script>
