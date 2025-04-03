@@ -1,5 +1,5 @@
 import os
-from flask import render_template, request, redirect, url_for, jsonify, Blueprint, flash, Flask  # Ensure Flask is imported
+from flask import render_template, request, redirect, url_for, jsonify, Blueprint, flash, Flask, session  # Ensure Flask and session are imported
 from flask_login import login_user, logout_user, login_required, LoginManager, current_user
 from . import app, db  # Import db
 from openai import OpenAI
@@ -10,6 +10,8 @@ from urllib.parse import urlparse, urljoin
 import requests  # Add import for making HTTP requests
 import csv  # Add import for CSV handling
 import json
+from authlib.integrations.flask_client import OAuth
+
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -24,11 +26,31 @@ books_endpoint = os.environ.get("GOOGLE_BOOKS_ENDPOINT")
 pw_encode = os.environ.get("PW_ENCODE")
 pw_hash = os.environ.get("PW_HASH_METHOD")
 
+google_consumer_key = os.environ.get("GOOGLE_CONSUMER_KEY")
+google_consumer_secret = os.environ.get("GOOGLE_CONSUMER_SECRET")
+google_client_id = os.environ.get("GOOGLE_CLIENT_ID")
+google_client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+google_base_url = os.environ.get("GOOGLE_BASE_URL")
+google_access_token_url = os.environ.get("GOOGLE_ACCESS_TOKEN_URL")
+google_auth_endpoint = os.environ.get("GOOGLE_AUTH_ENDPOINT")
 
+#models
 model_name = "gpt-4o"
 client = OpenAI(
     base_url=endpoint,
     api_key=token,
+)
+# OAuth
+oauth = OAuth(app)
+# Google OAuth config
+google = oauth.register(
+    name='google',
+    client_id=google_client_id,
+    client_secret=google_client_secret,
+    access_token_url=google_access_token_url,
+    authorize_url=google_auth_endpoint,
+    api_base_url=google_base_url,
+    client_kwargs={'scope': 'email profile'}
 )
 
 @login_manager.user_loader
@@ -82,6 +104,50 @@ def login():
         flash('Invalid username or password.')
     
     return render_template('login.html')
+
+@app.route('/login-with-google', methods=['GET', 'POST'])
+def login_google():
+    redirect_uri = url_for('auth_google', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/auth/google', methods=['GET', 'POST'])
+def auth_google():
+    token = google.authorize_access_token()
+    session['google_token'] = token  # Store the token in Flask's session
+    resp = google.get('userinfo')
+    user_info = resp.json()
+
+    if not user_info or 'email' not in user_info:
+        flash("Google login failed.", "danger")
+        return redirect(url_for('login'))
+
+    google_id = user_info['id']
+    google_profile_link = f"https://profiles.google.com/{google_id}"
+
+    print(user_info)
+    user = User.query.filter_by(email=user_info['email']).first()
+
+    if not user:
+        user = User(username=user_info['email'], email=user_info['email'], google_id=user_info['id'])
+        db.session.add(user)
+        db.session.commit()
+
+    profile = Profile.query.filter_by(user_id=user.id).first()
+
+    if not profile:
+        profile = Profile(
+            user_id=user.id,
+            profile_picture=user_info.get('picture'),
+            google_profile_link=google_profile_link
+        )
+        db.session.add(profile)
+    else:
+        profile.profile_picture = user_info.get('picture')
+        profile.google_profile_link = google_profile_link
+
+    db.session.commit()
+    login_user(user)
+    return redirect(url_for('home'))
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():

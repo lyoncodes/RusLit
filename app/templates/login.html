@@ -29,6 +29,22 @@
         text-align: center;
         margin-top: 20px;
     }
+    .google-login {
+        text-align: center;
+        margin-top: 20px;
+    }
+    .google-login a {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #4285F4;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+    }
+    .google-login a:hover {
+        background-color: #357ae8;
+    }
 </style>
 <form method="POST" action="{{ url_for('login') }}">
     <label for="username">Username:</label>
@@ -39,6 +55,9 @@
     
     <button type="submit">Login</button>
 </form>
+<div class="google-login">
+    <a href="{{ url_for('login_google') }}">Sign in with Google</a>
+</div>
 <div class="signup-link">
     <a href="{{ url_for('signup') }}">Create Account</a>
 </div>

@@ -2,6 +2,9 @@
     <ul>
         <li id="nav-link">
             {% if current_user.is_authenticated %}
+                {% if profile.profile_picture %}
+                    <img src="{{profile.profile_picture}}" alt="Profile Picture" style="width: 30px; height: 30px; border-radius: 50%;">
+                {% endif %}
                 <a href="{{ url_for('profile', id=current_user.id) }}">{{ current_user.username }}</a>
                 <div>
                     <a href="{{ url_for('logout') }}">Logout</a>
