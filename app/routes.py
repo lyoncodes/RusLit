@@ -11,6 +11,7 @@ import requests  # Add import for making HTTP requests
 import csv  # Add import for CSV handling
 import json
 from authlib.integrations.flask_client import OAuth
+from concurrent.futures import ThreadPoolExecutor  # Add import for ThreadPoolExecutor
 
 
 login_manager = LoginManager()
@@ -21,7 +22,7 @@ load_dotenv()
 user_bp = Blueprint('user_bp', __name__)
 token = os.environ.get("OPENAI_API_KEY")
 endpoint = os.environ.get("OPENAI_4o_ENDPOINT")
-books_token = os.environ.get("GOOGLE_BOOKS_API_KEY")
+books_token = os.environ.get("GOOGLE_API_KEY")
 books_endpoint = os.environ.get("GOOGLE_BOOKS_ENDPOINT")
 pw_encode = os.environ.get("PW_ENCODE")
 pw_hash = os.environ.get("PW_HASH_METHOD")
@@ -293,11 +294,41 @@ def profile(id):
         db.session.commit()
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('profile', id=current_user.id))
-    
-    if user:
-        return render_template('profile.html', user=user, profile=profile, books=user_books)  # Updated variable
-    else:
-        return {"error": "User not found"}, 404
+    if request.method == 'GET':
+        searchString = request.args.get('searchString')
+        search_results = None
+
+        if searchString:
+            searchString = searchString.replace(" ", "+")
+            with ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    requests.get, 
+                    f"{books_endpoint}volumes/?q={searchString}&key={books_token}"
+                )
+                response = future.result()
+            if response.status_code == 200:
+                search_results = response.json()
+                search_results = search_results.get('items', [])
+                for item in search_results:
+                    item['volumeInfo']['description'] = item['volumeInfo'].get('description', 'No description available')
+            else:
+                flash('Error fetching data from Google Books API', 'danger')
+        if search_results:
+            search_results = search_results[:10]  # Limit to 10 results for display\
+            print(search_results)
+        else:
+            search_results = []
+
+        if user:
+            return render_template(
+                'profile.html', 
+                user=user, 
+                profile=profile, 
+                books=user_books, 
+                search_results=search_results
+            )
+        else:
+            return {"error": "User not found"}, 404
 
 @app.route('/submit_form', methods=['POST'])
 def submit_form():

@@ -12,6 +12,27 @@
     <p><strong>Created At:</strong> {{ user.created_at }}</p>
     <p><strong>Last Login:</strong> {{ user.last_login }}</p>
     <div>
+        <form action="{{ url_for('profile', id=user.id) }}" method="GET">
+            <input type="text" id="search" name="searchString" placeholder="Search for books...">
+            <button id="search-button">Search</button>
+            <div id="search-results">
+                {% if search_results %}
+                <h3>Search Results</h3>
+                <ul>
+                    {% for book in search_results %}
+                    <li>
+                        <strong>{{ book.volumeInfo.title }}</strong> by {{ book.volumeInfo.authors }}
+                        <button class="add-to-profile" data-book-id="{{ book.id }}">Add to Profile</button>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No results found.</p>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+    <div>
         <h3>Your Titles</h3>
         {% if books and books|length > 0 %}
         <ul>
