@@ -314,8 +314,8 @@ def profile(id):
             else:
                 flash('Error fetching data from Google Books API', 'danger')
         if search_results:
-            search_results = search_results[:10]  # Limit to 10 results for display\
-            print(search_results)
+            search_results = search_results[:10]  # Limit to 10 results for display
+            print(search_results[0]['volumeInfo']['industryIdentifiers'][0]['identifier'])
         else:
             search_results = []
 

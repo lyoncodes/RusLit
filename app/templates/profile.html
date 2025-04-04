@@ -22,6 +22,17 @@
                     {% for book in search_results %}
                     <li>
                         <strong>{{ book.volumeInfo.title }}</strong> by {{ book.volumeInfo.authors }}
+                        <br>
+                        <strong>ISBN:</strong> {{ book.volumeInfo.industryIdentifiers[0].identifier }}
+                        <br>
+                        <strong>Publisher:</strong> {{ book.volumeInfo.publisher }}
+                        <br>
+                        <strong>Published Date:</strong> {{ book.volumeInfo.publishedDate }}
+                        <br>
+                        <strong>Page Count:</strong> {{ book.volumeInfo.pageCount }}
+                        <br>
+                        <strong>Language:</strong> {{ book.volumeInfo.language }}
+                        <br>
                         <button class="add-to-profile" data-book-id="{{ book.id }}">Add to Profile</button>
                     </li>
                     {% endfor %}
