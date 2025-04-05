@@ -314,8 +314,8 @@ def profile(id):
             else:
                 flash('Error fetching data from Google Books API', 'danger')
         if search_results:
-            search_results = search_results[:10]  # Limit to 10 results for display
-            print(search_results[0]['volumeInfo']['industryIdentifiers'][0]['identifier'])
+            # Limit the number of search results to 20
+            search_results = search_results[:20]
         else:
             search_results = []
 
@@ -565,3 +565,33 @@ def get_user_books(id):
         books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == id).all()
         books_data = [{"id": book.id, "isbn": book.isbn, "title": book.title, "author": book.author} for book in books]
         return jsonify(books_data)
+
+@app.route('/add_book_to_profile', methods=['POST'])
+@login_required
+def add_book_to_profile():
+    book_data = request.json  # Expecting JSON data from the client
+    book_id = book_data.get('id')
+    title = book_data.get('title')
+    author = book_data.get('author')
+    isbn = book_data.get('isbn')
+
+    if not book_id or not title or not author:
+        return jsonify({"error": "Missing required book data"}), 400
+
+    # Check if the book already exists in the database
+    book = Book.query.filter_by(id=book_id).first()
+    if not book:
+        # Create a new book entry
+        book = Book(id=book_id, title=title, author=author, isbn=isbn)
+        db.session.add(book)
+        db.session.commit()
+
+    # Check if the user already has this book in their profile
+    user_book = db.session.query(users_books).filter_by(user_id=current_user.id, book_id=book.id).first()
+    if not user_book:
+        # Add the book to the user's profile
+        db.session.execute(users_books.insert().values(user_id=current_user.id, book_id=book.id))
+        db.session.commit()
+        return jsonify({"message": "Book added to profile successfully"}), 200
+    else:
+        return jsonify({"message": "Book already exists in the user's profile"}), 200

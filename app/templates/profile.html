@@ -33,7 +33,7 @@
                         <br>
                         <strong>Language:</strong> {{ book.volumeInfo.language }}
                         <br>
-                        <button class="add-to-profile" data-book-id="{{ book.id }}">Add to Profile</button>
+                        <button class="add-to-profile" data-book-id="{{ book.id }}" data-book-title="{{ book.volumeInfo.title }}" data-book-author="{{ book.volumeInfo.authors }}" data-book-isbn="{{ book.volumeInfo.industryIdentifiers[0].identifier }}">Add to Profile</button>
                     </li>
                     {% endfor %}
                 </ul>
@@ -231,4 +231,39 @@
         gap: 10px;
     }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.add-to-profile').forEach(button => {
+            button.addEventListener('click', async (event) => {
+                event.preventDefault();
+                const bookId = button.getAttribute('data-book-id');
+                const bookTitle = button.getAttribute('data-book-title');
+                const bookAuthor = button.getAttribute('data-book-author');
+                const bookIsbn = button.getAttribute('data-book-isbn');
+
+                try {
+                    const response = await fetch('/add_book_to_profile', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            id: bookId,
+                            title: bookTitle,
+                            author: bookAuthor,
+                            isbn: bookIsbn,
+                        }),
+                    });
+
+                    const result = await response.json();
+                    alert(result.message);
+                } catch (error) {
+                    console.error('Error adding book to profile:', error);
+                    alert('An error occurred while adding the book to your profile.');
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}

@@ -35,7 +35,7 @@ class User(db.Model):
 class Book(db.Model):
     __tablename__ = 'books'
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
     isbn: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
     author: Mapped[str] = mapped_column(String, nullable=False)
@@ -89,7 +89,8 @@ users_books = Table(
     'users_books',
     db.metadata,
     Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
-    Column('book_id', Integer, ForeignKey('books.id'), primary_key=True)
+    Column('book_id', Integer, ForeignKey('books.id'), primary_key=True),
+    Column('created_at', db.DateTime, nullable=False, default=datetime.utcnow)  # Use db.DateTime here
 )
 
 user_profiles = Table(
