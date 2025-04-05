@@ -333,17 +333,17 @@ def profile(id):
         else:
             return {"error": "User not found"}, 404
 
-@app.route('/profile_list', methods=['GET'])
+@app.route('/profile_search', methods=['GET'])
 @login_required
 def profile_search():
     searchString = request.args.get('searchString')
     search_results = None
+    print(searchString)
     return render_template(
         'profileList.html',
         profile=profile,
         search_results=search_results
      )
-
 
 @app.route('/submit_form', methods=['POST'])
 def submit_form():
@@ -557,30 +557,6 @@ def submit_form():
         print(f"Error fetching data from OpenAI: {e}")
         return jsonify({"error": "Failed to fetch data from OpenAI", "details": str(e)}), 500
 
-
-@user_bp.route('/user/<email>', methods=['GET'])
-def get_user(email):
-    user = User.query.filter_by(email=email).first()
-    if user:
-        return {
-            "email": user.email,
-            "full_name": user.full_name,
-            "is_active": user.is_active,
-            "is_admin": user.is_admin,
-            "created_at": user.created_at.isoformat()
-        }
-    else:
-        return {"error": "User not found"}, 404
-
-# users save books to their profile
-@user_bp.route('/user/<id>/books', methods=['GET'])
-def get_user_books(id):
-    user = User.query.get(id)
-    if user:
-        books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == id).all()
-        books_data = [{"id": book.id, "isbn": book.isbn, "title": book.title, "author": book.author} for book in books]
-        return jsonify(books_data)
-
 @app.route('/add_book_to_profile', methods=['POST'])
 @login_required
 def add_book_to_profile():
@@ -610,3 +586,34 @@ def add_book_to_profile():
         return jsonify({"message": "Book added to profile successfully"}), 200
     else:
         return jsonify({"message": "Book already exists in the user's profile"}), 200
+
+@user_bp.route('/user/<email>', methods=['GET'])
+def get_user(email):
+    user = User.query.filter_by(email=email).first()
+    if user:
+        return {
+            "email": user.email,
+            "full_name": user.full_name,
+            "is_active": user.is_active,
+            "is_admin": user.is_admin,
+            "created_at": user.created_at.isoformat()
+        }
+    else:
+        return {"error": "User not found"}, 404
+
+# users save books to their profile
+@user_bp.route('/user/<id>/books', methods=['GET'])
+def get_user_books(id):
+    user = User.query.get(id)
+    if user:
+        books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == id).all()
+        books_data = [{"id": book.id, "isbn": book.isbn, "title": book.title, "author": book.author} for book in books]
+        return jsonify(books_data)
+    
+@user_bp.route('/profile_search', methods=['GET'])
+@login_required
+def profile_search():
+    print("Profile search endpoint hit")
+    searchString = request.args.get('searchString')
+    search_results = None
+    print(searchString)
