@@ -16,6 +16,7 @@ class User(db.Model):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login: Mapped[datetime] = mapped_column(nullable=True)
+    google_id: Mapped[str] = mapped_column(String, nullable=False)
 
     def __repr__(self):
         return f"<User {self.username}>"
@@ -34,7 +35,7 @@ class User(db.Model):
 class Book(db.Model):
     __tablename__ = 'books'
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
     isbn: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
     author: Mapped[str] = mapped_column(String, nullable=False)
@@ -47,6 +48,9 @@ class Profile(db.Model):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey('users.id'), nullable=False)
+    locale: Mapped[str] = mapped_column(String, nullable=False)
+    profile_picture: Mapped[str] = mapped_column(String, nullable=False)
+    google_profile_link: Mapped[str] = mapped_column(String, nullable=False)
     genre_novel: Mapped[bool] = mapped_column(Boolean, default=False)
     genre_short_story: Mapped[bool] = mapped_column(Boolean, default=False)
     genre_poetry: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -85,8 +89,25 @@ users_books = Table(
     'users_books',
     db.metadata,
     Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
-    Column('book_id', Integer, ForeignKey('books.id'), primary_key=True)
+    Column('book_id', Integer, ForeignKey('books.id'), primary_key=True),
+    Column('created_at', db.DateTime, nullable=False, default=datetime.utcnow)  # Use db.DateTime here
 )
 
+user_profiles = Table(
+    'user_profiles',
+    db.metadata,
+    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('profile_id', Integer, ForeignKey('profiles.id'), primary_key=True)
+)
+
+friendships = Table(
+    'friendships',
+    db.metadata,
+    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('friend_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('created_at', db.DateTime, nullable=False, default=datetime.utcnow)
+)
+
+
 # Export user_books
-__all__ = ['User', 'Book', 'Profile', 'users_books']
+__all__ = ['User', 'Book', 'Profile', 'users_books', 'users_profiles']

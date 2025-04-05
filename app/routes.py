@@ -1,15 +1,18 @@
 import os
-from flask import render_template, request, redirect, url_for, jsonify, Blueprint, flash, Flask  # Ensure Flask is imported
+from flask import render_template, request, redirect, url_for, jsonify, Blueprint, flash, Flask, session  # Ensure Flask and session are imported
 from flask_login import login_user, logout_user, login_required, LoginManager, current_user
 from . import app, db  # Import db
 from openai import OpenAI
 from dotenv import load_dotenv
-from .models import User, Book, Profile, users_books  # Import the User, Book models and linking table
+from .models import User, Book, Profile, users_books, friendships  # Import the User, Book models and linking table
 from werkzeug.security import generate_password_hash, check_password_hash
 from urllib.parse import urlparse, urljoin
 import requests  # Add import for making HTTP requests
 import csv  # Add import for CSV handling
 import json
+from authlib.integrations.flask_client import OAuth
+from concurrent.futures import ThreadPoolExecutor  # Add import for ThreadPoolExecutor
+
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -19,16 +22,36 @@ load_dotenv()
 user_bp = Blueprint('user_bp', __name__)
 token = os.environ.get("OPENAI_API_KEY")
 endpoint = os.environ.get("OPENAI_4o_ENDPOINT")
-books_token = os.environ.get("GOOGLE_BOOKS_API_KEY")
+books_token = os.environ.get("GOOGLE_API_KEY")
 books_endpoint = os.environ.get("GOOGLE_BOOKS_ENDPOINT")
 pw_encode = os.environ.get("PW_ENCODE")
 pw_hash = os.environ.get("PW_HASH_METHOD")
 
+google_consumer_key = os.environ.get("GOOGLE_CONSUMER_KEY")
+google_consumer_secret = os.environ.get("GOOGLE_CONSUMER_SECRET")
+google_client_id = os.environ.get("GOOGLE_CLIENT_ID")
+google_client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+google_base_url = os.environ.get("GOOGLE_BASE_URL")
+google_access_token_url = os.environ.get("GOOGLE_ACCESS_TOKEN_URL")
+google_auth_endpoint = os.environ.get("GOOGLE_AUTH_ENDPOINT")
 
+#models
 model_name = "gpt-4o"
 client = OpenAI(
     base_url=endpoint,
     api_key=token,
+)
+# OAuth
+oauth = OAuth(app)
+# Google OAuth config
+google = oauth.register(
+    name='google',
+    client_id=google_client_id,
+    client_secret=google_client_secret,
+    access_token_url=google_access_token_url,
+    authorize_url=google_auth_endpoint,
+    api_base_url=google_base_url,
+    client_kwargs={'scope': 'email profile'}
 )
 
 @login_manager.user_loader
@@ -83,6 +106,50 @@ def login():
     
     return render_template('login.html')
 
+@app.route('/login-with-google', methods=['GET', 'POST'])
+def login_google():
+    redirect_uri = url_for('auth_google', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/auth/google', methods=['GET', 'POST'])
+def auth_google():
+    token = google.authorize_access_token()
+    session['google_token'] = token  # Store the token in Flask's session
+    resp = google.get('userinfo')
+    user_info = resp.json()
+
+    if not user_info or 'email' not in user_info:
+        flash("Google login failed.", "danger")
+        return redirect(url_for('login'))
+
+    google_id = user_info['id']
+    google_profile_link = f"https://profiles.google.com/{google_id}"
+
+    print(user_info)
+    user = User.query.filter_by(email=user_info['email']).first()
+
+    if not user:
+        user = User(username=user_info['email'], email=user_info['email'], google_id=user_info['id'])
+        db.session.add(user)
+        db.session.commit()
+
+    profile = Profile.query.filter_by(user_id=user.id).first()
+
+    if not profile:
+        profile = Profile(
+            user_id=user.id,
+            profile_picture=user_info.get('picture'),
+            google_profile_link=google_profile_link
+        )
+        db.session.add(profile)
+    else:
+        profile.profile_picture = user_info.get('picture')
+        profile.google_profile_link = google_profile_link
+
+    db.session.commit()
+    login_user(user)
+    return redirect(url_for('home'))
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -131,6 +198,8 @@ def profile(id):
     profile = Profile.query.filter_by(user_id=id).first()
     
     user_books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == id).all()
+
+    users_friends = db.session.query(User).join(friendships, User.id == friendships.c.friend_id).filter(friendships.c.user_id == id).all()
 
     if request.method == 'POST':
         novel = request.form.get('novel') == 'on'
@@ -227,11 +296,54 @@ def profile(id):
         db.session.commit()
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('profile', id=current_user.id))
-    
-    if user:
-        return render_template('profile.html', user=user, profile=profile, books=user_books)  # Updated variable
-    else:
-        return {"error": "User not found"}, 404
+    if request.method == 'GET':
+        searchString = request.args.get('searchString')
+        search_results = None
+
+        if searchString:
+            searchString = searchString.replace(" ", "+")
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    requests.get, 
+                    f"{books_endpoint}volumes/?q={searchString}&key={books_token}"
+                )
+                response = future.result()
+            if response.status_code == 200:
+                search_results = response.json()
+                search_results = search_results.get('items', [])
+                for item in search_results:
+                    item['volumeInfo']['description'] = item['volumeInfo'].get('description', 'No description available')
+            else:
+                flash('Error fetching data from Google Books API', 'danger')
+        if search_results:
+            # Limit the number of search results to 20
+            search_results = search_results[:20]
+        else:
+            search_results = []
+
+        if user:
+            return render_template(
+                'profile.html', 
+                user=user, 
+                profile=profile, 
+                books=user_books, 
+                search_results=search_results,
+                friends=users_friends
+            )
+        else:
+            return {"error": "User not found"}, 404
+
+@app.route('/profile_list', methods=['GET'])
+@login_required
+def profile_search():
+    searchString = request.args.get('searchString')
+    search_results = None
+    return render_template(
+        'profileList.html',
+        profile=profile,
+        search_results=search_results
+     )
+
 
 @app.route('/submit_form', methods=['POST'])
 def submit_form():
@@ -468,3 +580,33 @@ def get_user_books(id):
         books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == id).all()
         books_data = [{"id": book.id, "isbn": book.isbn, "title": book.title, "author": book.author} for book in books]
         return jsonify(books_data)
+
+@app.route('/add_book_to_profile', methods=['POST'])
+@login_required
+def add_book_to_profile():
+    book_data = request.json  # Expecting JSON data from the client
+    book_id = book_data.get('id')
+    title = book_data.get('title')
+    author = book_data.get('author')
+    isbn = book_data.get('isbn')
+
+    if not book_id or not title or not author:
+        return jsonify({"error": "Missing required book data"}), 400
+
+    # Check if the book already exists in the database
+    book = Book.query.filter_by(id=book_id).first()
+    if not book:
+        # Create a new book entry
+        book = Book(id=book_id, title=title, author=author, isbn=isbn)
+        db.session.add(book)
+        db.session.commit()
+
+    # Check if the user already has this book in their profile
+    user_book = db.session.query(users_books).filter_by(user_id=current_user.id, book_id=book.id).first()
+    if not user_book:
+        # Add the book to the user's profile
+        db.session.execute(users_books.insert().values(user_id=current_user.id, book_id=book.id))
+        db.session.commit()
+        return jsonify({"message": "Book added to profile successfully"}), 200
+    else:
+        return jsonify({"message": "Book already exists in the user's profile"}), 200

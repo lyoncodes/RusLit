@@ -12,6 +12,38 @@
     <p><strong>Created At:</strong> {{ user.created_at }}</p>
     <p><strong>Last Login:</strong> {{ user.last_login }}</p>
     <div>
+        <form action="{{ url_for('profile', id=user.id) }}" method="GET">
+            <input type="text" id="search" name="searchString" placeholder="Search for books...">
+            <button id="search-button">Search</button>
+            <div id="search-results">
+                {% if search_results %}
+                <h3>Search Results</h3>
+                <ul>
+                    {% for book in search_results %}
+                    <li>
+                        <strong>{{ book.volumeInfo.title }}</strong> by {{ book.volumeInfo.authors }}
+                        <br>
+                        <strong>ISBN:</strong> {{ book.volumeInfo.industryIdentifiers[0].identifier }}
+                        <br>
+                        <strong>Publisher:</strong> {{ book.volumeInfo.publisher }}
+                        <br>
+                        <strong>Published Date:</strong> {{ book.volumeInfo.publishedDate }}
+                        <br>
+                        <strong>Page Count:</strong> {{ book.volumeInfo.pageCount }}
+                        <br>
+                        <strong>Language:</strong> {{ book.volumeInfo.language }}
+                        <br>
+                        <button class="add-to-profile" data-book-id="{{ book.id }}" data-book-title="{{ book.volumeInfo.title }}" data-book-author="{{ book.volumeInfo.authors }}" data-book-isbn="{{ book.volumeInfo.industryIdentifiers[0].identifier }}">Add to Profile</button>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No results found.</p>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+    <div>
         <h3>Your Titles</h3>
         {% if books and books|length > 0 %}
         <ul>
@@ -23,6 +55,24 @@
         </ul>
         {% else %}
         <p>You have no books saved to your profile.</p>
+        {% endif %}
+    </div>
+    <div>
+        <h3>Friends</h3>
+        {% if friends and friends|length > 0 %}
+        <ul>
+            {% for friend in friends %}
+            <li>
+                <strong>{{ friend.full_name }}</strong> ({{ friend.username }})
+                <br>
+                <a href="{{ url_for('profile', id=friend.id) }}">View Profile</a>
+            </li>
+            {% endfor %}
+        <ul>
+            <li>
+            </li>
+        </ul>
+        {% else %}
         {% endif %}
     </div>
     <form action="{{ url_for('profile', id=user.id) }}" method="POST" class="centered-form">
@@ -199,4 +249,39 @@
         gap: 10px;
     }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.add-to-profile').forEach(button => {
+            button.addEventListener('click', async (event) => {
+                event.preventDefault();
+                const bookId = button.getAttribute('data-book-id');
+                const bookTitle = button.getAttribute('data-book-title');
+                const bookAuthor = button.getAttribute('data-book-author');
+                const bookIsbn = button.getAttribute('data-book-isbn');
+
+                try {
+                    const response = await fetch('/add_book_to_profile', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            id: bookId,
+                            title: bookTitle,
+                            author: bookAuthor,
+                            isbn: bookIsbn,
+                        }),
+                    });
+
+                    const result = await response.json();
+                    alert(result.message);
+                } catch (error) {
+                    console.error('Error adding book to profile:', error);
+                    alert('An error occurred while adding the book to your profile.');
+                }
+            });
+        });
+    });
+</script>
 {% endblock %}
