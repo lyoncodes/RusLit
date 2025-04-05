@@ -300,7 +300,7 @@ def profile(id):
 
         if searchString:
             searchString = searchString.replace(" ", "+")
-            with ThreadPoolExecutor() as executor:
+            with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(
                     requests.get, 
                     f"{books_endpoint}volumes/?q={searchString}&key={books_token}"
