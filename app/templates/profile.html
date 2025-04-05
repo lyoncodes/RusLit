@@ -60,7 +60,7 @@
     <div>
         <h3>Friends</h3>
         <form action="{{ url_for('profile_search') }}" method="GET">
-            <input type="text" name="search" placeholder="Search for friends...">
+            <input type="text" name="searchString" placeholder="Search for friends...">
             <button type="submit">Search For Readers</button>
         </form>
         {% if friends and friends|length > 0 %}

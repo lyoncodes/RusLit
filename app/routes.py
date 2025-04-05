@@ -609,11 +609,3 @@ def get_user_books(id):
         books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == id).all()
         books_data = [{"id": book.id, "isbn": book.isbn, "title": book.title, "author": book.author} for book in books]
         return jsonify(books_data)
-    
-@user_bp.route('/profile_search', methods=['GET'])
-@login_required
-def profile_search():
-    print("Profile search endpoint hit")
-    searchString = request.args.get('searchString')
-    search_results = None
-    print(searchString)
