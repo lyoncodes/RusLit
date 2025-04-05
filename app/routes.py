@@ -4,7 +4,7 @@ from flask_login import login_user, logout_user, login_required, LoginManager, c
 from . import app, db  # Import db
 from openai import OpenAI
 from dotenv import load_dotenv
-from .models import User, Book, Profile, users_books  # Import the User, Book models and linking table
+from .models import User, Book, Profile, users_books, friendships  # Import the User, Book models and linking table
 from werkzeug.security import generate_password_hash, check_password_hash
 from urllib.parse import urlparse, urljoin
 import requests  # Add import for making HTTP requests
@@ -199,6 +199,8 @@ def profile(id):
     
     user_books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == id).all()
 
+    users_friends = db.session.query(User).join(friendships, User.id == friendships.c.friend_id).filter(friendships.c.user_id == id).all()
+
     if request.method == 'POST':
         novel = request.form.get('novel') == 'on'
         short_story = request.form.get('short_story') == 'on'
@@ -325,10 +327,23 @@ def profile(id):
                 user=user, 
                 profile=profile, 
                 books=user_books, 
-                search_results=search_results
+                search_results=search_results,
+                friends=users_friends
             )
         else:
             return {"error": "User not found"}, 404
+
+@app.route('/profile_list', methods=['GET'])
+@login_required
+def profile_search():
+    searchString = request.args.get('searchString')
+    search_results = None
+    return render_template(
+        'profileList.html',
+        profile=profile,
+        search_results=search_results
+     )
+
 
 @app.route('/submit_form', methods=['POST'])
 def submit_form():

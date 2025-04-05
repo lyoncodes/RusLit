@@ -57,6 +57,24 @@
         <p>You have no books saved to your profile.</p>
         {% endif %}
     </div>
+    <div>
+        <h3>Friends</h3>
+        {% if friends and friends|length > 0 %}
+        <ul>
+            {% for friend in friends %}
+            <li>
+                <strong>{{ friend.full_name }}</strong> ({{ friend.username }})
+                <br>
+                <a href="{{ url_for('profile', id=friend.id) }}">View Profile</a>
+            </li>
+            {% endfor %}
+        <ul>
+            <li>
+            </li>
+        </ul>
+        {% else %}
+        {% endif %}
+    </div>
     <form action="{{ url_for('profile', id=user.id) }}" method="POST" class="centered-form">
         <label>Customize your search queries by choosing your areas of academic and creative interest</label><br>
         <div class="form-sections">

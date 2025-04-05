@@ -100,5 +100,14 @@ user_profiles = Table(
     Column('profile_id', Integer, ForeignKey('profiles.id'), primary_key=True)
 )
 
+friendships = Table(
+    'friendships',
+    db.metadata,
+    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('friend_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('created_at', db.DateTime, nullable=False, default=datetime.utcnow)
+)
+
+
 # Export user_books
 __all__ = ['User', 'Book', 'Profile', 'users_books', 'users_profiles']
