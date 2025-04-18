@@ -85,6 +85,8 @@ class Profile(db.Model):
     def __repr__(self):
         return f"<Profile {self.user_id}>"
 
+
+
 users_books = Table(
     'users_books',
     db.metadata,
@@ -108,6 +110,16 @@ friendships = Table(
     Column('created_at', db.DateTime, nullable=False, default=datetime.utcnow)
 )
 
+class LLMCache(db.Model):
+    __tablename__ = 'llm_cache'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    prompt: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    response: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<LLMCache id={self.id} prompt={self.prompt[:30]}...>"
 
 # Export user_books
-__all__ = ['User', 'Book', 'Profile', 'users_books', 'users_profiles']
+__all__ = ['User', 'Book', 'Profile', 'users_books', 'users_profiles', 'LLMCache']

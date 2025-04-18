@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %} {{ title }} {% endblock %}
+
+{% block content %}
+<div>
+    {{ title }} by {{ author }} - {{ isbn }}
+    <p>Loading editions...</p>
+    <div id="book-items"></div>
+    <div id="pagination-controls">
+        <button id="prev-page" disabled>Previous</button>
+        <button id="next-page">Next</button>
+    </div>
+    <div id="book-detail"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    const rowsPerPage = 10;
+    const title = encodeURIComponent("{{ title }}");
+
+    function getSubjects(subjects){
+        if (subjects && subjects.length > 0 && Array.isArray(subjects)) {
+            const subjectList = subjects.map(subject => `<li>${subject}</li>`).join('');
+            return subjectList
+        } else {
+            return 'No subjects available';
+        }
+    }
+
+    function fetchPage(page) {
+        const url = `/api/book_metadata/${title}?page=${page}`;
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Debug log to inspect the data
+                console.log('Data received:', data);
+
+                const container = document.getElementById('book-items');
+                // clear results
+                container.innerHTML = '';
+                if (!Array.isArray(data.items) || data.items.length === 0) {
+                    container.innerHTML = '<p>No editions found from internet archive collection.</p>';
+                    return;
+                }
+                data.items.forEach(item => {
+                    const title = item.title || 'Unknown Title';
+                    const creator = item.creator || 'Unknown Creator';
+                    const ia_url = item.identifier || 'No Link';
+                    const isbn = item.isbn || 'No ISBN';
+                    const subjects = item.subject || [];
+                    const subjectsHtml = getSubjects(subjects);
+                    const div = document.createElement('div');
+                    div.innerHTML = `<strong>${title}</strong> by ${creator}<br> 
+                                    <strong>Subjects:</strong> ${subjectsHtml}<br>
+                                    <a href="${ia_url}" target="_blank">View Edition on Archive</a><br>
+                                    <strong>ISBN:</strong><a href="#" class="isbn-link" data-isbn="${isbn}">${isbn}</a> <br>
+                                    <hr>`;
+                    container.appendChild(div);
+                });
+
+                // Add event listeners for ISBN links
+                document.querySelectorAll('.isbn-link').forEach(link => {
+                    link.addEventListener('click', event => {
+                        event.preventDefault();
+                        const isbn = event.target.getAttribute('data-isbn');
+                        fetchGoogleBookData(isbn);
+                    });
+                });
+
+                // Update pagination controls
+                document.getElementById('prev-page').disabled = data.page === 1;
+                document.getElementById('next-page').disabled = data.page >= data.total_pages;
+            })
+            .catch(error => {
+                console.error('Error fetching book metadata:', error);
+                const container = document.getElementById('book-items');
+                container.innerHTML = '<p>Error loading editions. Please try again later.</p>';
+            });
+    }
+
+    function fetchGoogleBookData(isbn) {
+        const url = `/api/find/${isbn}`;
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const bookDetailContainer = document.getElementById('book-detail');
+                bookDetailContainer.innerHTML = ''; // Clear previous details
+                if (data.length === 0) {
+                    bookDetailContainer.innerHTML = '<p>No details found for this ISBN.</p>';
+                    return;
+                }
+                const book = data[0].volumeInfo;
+                const description = book.description || 'No description available';
+                const authors = book.authors ? book.authors.join(', ') : 'Unknown Author';
+                const imageLink = book.imageLinks ? book.imageLinks.thumbnail : null;
+                const previewLink = book.previewLink || '#';
+
+                bookDetailContainer.innerHTML = `
+                    ${imageLink ? `<img src="${imageLink}" alt="${book.title} cover" style="max-width: 200px; display: block; margin-bottom: 10px;">` : ''}
+                    <h3><a href="${previewLink}" target="_blank">${book.title}</a></h3>
+                    <p><strong>Authors:</strong> ${authors}</p>
+                    <p><strong>Description:</strong> ${description}</p>`;
+            })
+            .catch(error => {
+                console.error('Error fetching book details:', error);
+                const bookDetailContainer = document.getElementById('book-detail');
+                bookDetailContainer.innerHTML = '<p>Error loading book details. Please try again later.</p>';
+            });
+    }
+
+    // Event listeners for pagination controls
+    document.getElementById('prev-page').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            fetchPage(currentPage);
+        }
+    });
+
+    document.getElementById('next-page').addEventListener('click', () => {
+        currentPage++;
+        fetchPage(currentPage);
+    });
+
+    // Fetch the first page on load
+    fetchPage(currentPage);
+</script>
+{% endblock %}

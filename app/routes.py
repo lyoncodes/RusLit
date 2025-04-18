@@ -4,14 +4,17 @@ from flask_login import login_user, logout_user, login_required, LoginManager, c
 from . import app, db  # Import db
 from openai import OpenAI
 from dotenv import load_dotenv
-from .models import User, Book, Profile, users_books, friendships  # Import the User, Book models and linking table
+from .models import User, Book, Profile, users_books, friendships, LLMCache  # Import the User, Book models and linking table
 from werkzeug.security import generate_password_hash, check_password_hash
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, quote_plus  # Add import for encoding special characters
 import requests  # Add import for making HTTP requests
 import csv  # Add import for CSV handling
 import json
+import time
+import pymarc
 from authlib.integrations.flask_client import OAuth
-from concurrent.futures import ThreadPoolExecutor  # Add import for ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed  # Add import for ThreadPoolExecutor
+from internetarchive import get_item, search_items, get_files
 
 
 login_manager = LoginManager()
@@ -26,7 +29,10 @@ books_token = os.environ.get("GOOGLE_API_KEY")
 books_endpoint = os.environ.get("GOOGLE_BOOKS_ENDPOINT")
 pw_encode = os.environ.get("PW_ENCODE")
 pw_hash = os.environ.get("PW_HASH_METHOD")
+# archives
+ia_books_collection = os.environ.get("IA_BOOKS")
 
+#google creds
 google_consumer_key = os.environ.get("GOOGLE_CONSUMER_KEY")
 google_consumer_secret = os.environ.get("GOOGLE_CONSUMER_SECRET")
 google_client_id = os.environ.get("GOOGLE_CLIENT_ID")
@@ -53,6 +59,9 @@ google = oauth.register(
     api_base_url=google_base_url,
     client_kwargs={'scope': 'email profile'}
 )
+
+# error log
+error_log = open("error_log.txt", "a")
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -214,10 +223,10 @@ def profile(id):
         political = request.form.get('political') == 'on'
         nihilistic = request.form.get('nihilistic') == 'on'
         ethical = request.form.get('ethical') == 'on'
-        mbti_istj = request.form.get('istj') == 'istj'
-        mbti_isfj = request.form.get('isfj') == 'isfj'
-        mbti_infj = request.form.get('infj') == 'infj'
-        mbti_intj = request.form.get('intj') == 'intj'
+        mbti_istj = request.form.get('istj') == 'on'
+        mbti_isfj = request.form.get('isfj') == 'on'
+        mbti_infj = request.form.get('infj') == 'on'
+        mbti_intj = request.form.get('intj') == 'on'
         mbti_istp = request.form.get('istp') == 'on'
         mbti_isfp = request.form.get('isfp') == 'on'
         mbti_infp = request.form.get('infp') == 'on'
@@ -237,9 +246,9 @@ def profile(id):
             profile.genre_poetry = poetry
             profile.genre_satire = satire
             profile.genre_romance = romance
-            profile.genre_psychological = psychological
             profile.genre_spiritual = spiritual
             profile.interest_social = social
+            profile.interest_psychological = psychological
             profile.interest_existential = existential
             profile.interest_political = political
             profile.interest_nihilistic = nihilistic
@@ -333,6 +342,7 @@ def profile(id):
         else:
             return {"error": "User not found"}, 404
 
+
 @app.route('/profile_list', methods=['GET'])
 @login_required
 def profile_search():
@@ -344,13 +354,13 @@ def profile_search():
         search_results=search_results
      )
 
-
 @app.route('/submit_form', methods=['POST'])
 def submit_form():
     # Process the form data here
     # capture form data
     form_data = request.form.to_dict()
     
+    # --- FILE HANDLING --- #
     # capture file data if file uploaded
     file = request.files.get('file')
     
@@ -372,7 +382,9 @@ def submit_form():
         else:
             # Handle other file types if necessary
             pass
-    
+    # --- END FILE HANDLING --- #
+
+
     # Get the user's internal bookshelf
     user_books = []
     if current_user.is_authenticated:
@@ -473,23 +485,23 @@ def submit_form():
         if (len(realm_tags) & len(philosophy_tags)):
             tags = realm_tags + philosophy_tags
             prompt += f" Focus results on works with {', '.join(tags)} themes"
-        elif len(realm_tags):
+        elif len(realm_tags) & len(philosophy_tags) == 0:
             prompt += f" Focus results on works that are {', '.join(realm_tags)} in nature"
-        elif len(philosophy_tags):
+        elif len(philosophy_tags) & len(realm_tags) == 0:
             prompt += f" Focus results on works with {', '.join(philosophy_tags)} themes"
         
         if form_data.get('realm'):
-            prompt += f" that are {form_data['realm']} in nature"
+            prompt += f" and {form_data['realm']},"
         
         # reading time
         if form_data.get('mediaLength'):
             if form_data['mediaLength'] == "short":
-                time = "between 1 to 3 hours"
+                duration = "between 1 to 3 hours"
             if form_data['mediaLength'] == "medium":
-                time = "between 4 to 10 hours"
+                duration = "between 4 to 10 hours"
             if form_data['mediaLength'] == "long":
-                time = "longer than 10 hours"
-            prompt += f" and will take an advanced reader {time} to complete"
+                duration = "longer than 10 hours"
+            prompt += f" taking an advanced reader {duration} to complete"
 
         prompt += "."
 
@@ -518,6 +530,16 @@ def submit_form():
 
     formatted_content = build_query_text(form_data, file_content, profile)
     print(formatted_content)
+
+    # Check if the prompt already exists in the cache
+    cached_response = db.session.query(LLMCache).filter_by(prompt=formatted_content).first()
+    if cached_response:
+        print("Cache hit for prompt.")
+        return jsonify({
+            "response": json.loads(cached_response.response),  # Return cached response
+            "file_data": file_content
+        })
+
     try:
         # Create a request to the client.chat.completions object
         response = client.chat.completions.create(
@@ -538,7 +560,7 @@ def submit_form():
         )
         
         # Log the full response for debugging
-        print("OpenAI Response:", len(response.choices))
+        print("OpenAI Response:", len(response.choices), response.usage.prompt_tokens)
 
         # Ensure the response contains choices
         if not response.choices or not response.choices[0].message.content:
@@ -547,7 +569,15 @@ def submit_form():
         # Convert the JSON string
         gpt_res = response.choices[0].message.content
         loaded_json = format_json_from_response(gpt_res)
-        
+
+        # Store the response in the cache
+        new_cache_entry = LLMCache(
+            prompt=formatted_content,
+            response=json.dumps(loaded_json)
+        )
+        db.session.add(new_cache_entry)
+        db.session.commit()
+
         return jsonify({
             "response": loaded_json,
             "file_data": file_content
@@ -557,7 +587,90 @@ def submit_form():
         print(f"Error fetching data from OpenAI: {e}")
         return jsonify({"error": "Failed to fetch data from OpenAI", "details": str(e)}), 500
 
+@app.route('/book_detail/<author>/<title>', methods=['GET'])
+def book_details(author, title):
+    # render template
+    return render_template('bookDetails.html', author=author, title=title)
 
+@app.route('/api/find/<isbn>', methods=['GET'])
+def fetch_google_book_data(isbn):
+    # Fetch book details from Google Books API
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(
+            requests.get, 
+            f"{books_endpoint}volumes/?q=isbn:{isbn}&key={books_token}"
+        )
+        response = future.result()
+    if response.status_code == 200:
+        search_results = response.json()
+        search_results = search_results.get('items', [])
+        for item in search_results:
+            item['volumeInfo']['description'] = item['volumeInfo'].get('description', 'No description available')
+        print(json.dumps(search_results, indent=4))
+        return jsonify(search_results)
+    else:
+        return jsonify({"error": "Error fetching data from Google Books API"}), response.status_code
+
+@app.route('/api/book_metadata/<title>', methods=['GET'])
+def fetch_book_meta(title):
+    # Format the title by replacing spaces with '+' and encoding special characters
+    formatted_title = title.replace("&", "+").replace("amp;", "")
+    print(formatted_title)
+    # Default to page 1
+    page = int(request.args.get('page', 1))
+    # Number of results per page
+    rows_per_page = 10
+    # Calculate the starting index
+    start = (page - 1) * rows_per_page
+
+    # Fetch book details from Archive.org
+    search_string = f"{ia_books_collection} AND title:\"{formatted_title}\" AND language:\"eng\""
+    # convert to list
+    search_results = list(search_items(search_string))
+
+    # Slice results for pagination
+    paginated_results = search_results[start:start + rows_per_page]
+
+    def fetch_meta(id):
+        item = get_item(id)
+        metadata = item.metadata
+        # Pretty-print metadata to the console
+        print(json.dumps(metadata, indent=4))
+
+        isbn = metadata.get("isbn", "Unknown ISBN")
+        if (isinstance(isbn, list) and len(isbn) > 0):
+            isbn = isbn[1]
+
+        return {
+            "title": metadata.get("title", "Unknown Title"),
+            "creator": metadata.get("creator", "Unknown Creator"),
+            "isbn": isbn,
+            "identifier": metadata.get("identifier-access", "Unknown Identifier"),
+            "subject": metadata.get("subject", "Unknown Subject")
+        }
+    
+    items = []
+
+    # Concurrent data fetching
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(fetch_meta, result['identifier']) for result in paginated_results]
+        for future in as_completed(futures):
+            try:
+                item = future.result()
+                items.append(item)
+            except Exception as e:
+                print(f"Error fetching metadata: {e}")
+                error_log.write(f"{time.ctime()}: Error fetching metadata: {e}\n")
+                error_log.flush()
+    
+    return jsonify({
+        "page": page,
+        "items": items,
+        "total_results": len(search_results),  # Total number of results
+        "total_pages": (len(search_results) + rows_per_page - 1) // rows_per_page  # Calculate total pages
+    })
+
+# --- User routes --- #
 @user_bp.route('/user/<email>', methods=['GET'])
 def get_user(email):
     user = User.query.filter_by(email=email).first()
@@ -572,7 +685,6 @@ def get_user(email):
     else:
         return {"error": "User not found"}, 404
 
-# users save books to their profile
 @user_bp.route('/user/<id>/books', methods=['GET'])
 def get_user_books(id):
     user = User.query.get(id)
