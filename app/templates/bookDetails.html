@@ -19,6 +19,7 @@
     let currentPage = 1;
     const rowsPerPage = 10;
     const title = encodeURIComponent("{{ title }}");
+    const author = encodeURIComponent("{{ author }}");
 
     function getSubjects(subjects){
         if (subjects && subjects.length > 0 && Array.isArray(subjects)) {
@@ -30,7 +31,7 @@
     }
 
     function fetchPage(page) {
-        const url = `/api/book_metadata/${title}?page=${page}`;
+        const url = `/api/book_metadata/${title}/${author}?page=${page}`;
         fetch(url)
             .then(response => {
                 if (!response.ok) {

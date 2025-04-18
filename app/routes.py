@@ -360,7 +360,8 @@ def submit_form():
     # capture form data
     form_data = request.form.to_dict()
     
-    # --- FILE HANDLING --- #
+    # --- UPLODADED CUSTOM .TXT FILE HANDLING --- #
+    # We should change this to just create user books from the passed titles, as user books can be processed by the query engine
     # capture file data if file uploaded
     file = request.files.get('file')
     
@@ -411,14 +412,14 @@ def submit_form():
         
         if len(genre_tags):
             if (len(genre_tags) == 1):
-                prompt += f"Recommend a list of classic Russian {genre_tags[0]}"
+                prompt += f"Recommend a list of {genre_tags[0]}"
             elif (len(genre_tags) == 2):
-                prompt += f"Recommend a list of classic Russian {genre_tags[0]} and {genre_tags[1]}"
+                prompt += f"Recommend a list of {genre_tags[0]} and {genre_tags[1]}"
             else:
                 genre_tags[len(genre_tags) - 1] = f"and {genre_tags[len(genre_tags) - 1]}"
-                prompt += f"Recommend a list of classic Russian {', '.join(genre_tags)}"
+                prompt += f"Recommend a list of {', '.join(genre_tags)}"
         else:
-            prompt += "Recommend a list of classic Russian literature"
+            prompt += "Recommend a list of literature"
 
         # mbti
         if profile.mbti_istj:
@@ -491,7 +492,9 @@ def submit_form():
             prompt += f" Focus results on works with {', '.join(philosophy_tags)} themes"
         
         if form_data.get('realm'):
-            prompt += f" and {form_data['realm']},"
+            prompt += f" and {form_data['realm']}"
+        
+        prompt += ","
         
         # reading time
         if form_data.get('mediaLength'):
@@ -501,13 +504,13 @@ def submit_form():
                 duration = "between 4 to 10 hours"
             if form_data['mediaLength'] == "long":
                 duration = "longer than 10 hours"
-            prompt += f" taking an advanced reader {duration} to complete"
+            prompt += f" which should take an advanced reader {duration} to complete"
 
         prompt += "."
 
 
         if form_data.get('includeBookshelf'):
-            prompt += f" The reader has already read {user_books}, so exclude these titles from your recommendations."
+            prompt += f" The reader's bookshelf contains {user_books}, so base your results on these titles but exclude them from your recommendations."
 
         # if file_content:
         #     prompt += f" {file_content}."
@@ -520,10 +523,10 @@ def submit_form():
     
     # format_json_from_response converts the response to a JSON object
     def format_json_from_response(response):
-        response = response.replace("\n", "")
-        clean_json = response.replace("```json", "").replace("```", "").strip()
-        loaded_json = json.loads(clean_json)
-        return loaded_json
+        if response.startswith("```json"):
+            response = response.replace("```json", "").replace("```", "").strip()
+        print(response)
+        return json.loads(response)
     
     if current_user.is_authenticated:
         profile = db.session.query(Profile).filter_by(user_id=current_user.id).first()
@@ -547,9 +550,9 @@ def submit_form():
             messages=[
                 {
                     "role": "system", 
-                    "content": "As an expert Russian Literature bot, your role is to offer relevant, specified recommendations. Ensure your search results are limited to works by Russian authors, with suggestions that are both non-obvious and expansive. Provide each response in a JSON object containing a title, author, and description. Thank you for your help!",
+                    "content": "You are an expert in world Literature bot, your role is to offer 50 relevant, specified recommendations. Diversify your selections from authors from multiple countries, and provide brief explanations for how each book relates to the user's query. Always provide your entire response in a JSON object, with your suggestions always contained in an array of objects named 'recommendations', with each object's properties being title, author, description, and isbn. Thank you for your help!",
                     "metadata": {
-                        "tags": ["Russian Literature", "Recommendations"]
+                        "tags": ["World Literature", "Recommendations"]
                     },
                 },
                 {
@@ -558,17 +561,37 @@ def submit_form():
                 }
             ],
         )
-        
-        # Log the full response for debugging
-        print("OpenAI Response:", len(response.choices), response.usage.prompt_tokens)
+
+        # Log the raw response for debugging
+        print("Raw OpenAI Response:", response)
 
         # Ensure the response contains choices
         if not response.choices or not response.choices[0].message.content:
             raise ValueError("OpenAI response is empty or malformed.")
 
-        # Convert the JSON string
+        # Extract and sanitize the response content
         gpt_res = response.choices[0].message.content
+
+        # Log the response content
+        print("OpenAI Response Content:", gpt_res)
+
+        # Sanitize and parse the response
+        def format_json_from_response(response):
+            # Convert non-JSON formatted response to JSON
+            if response.startswith("```json"):
+                response = response.replace("```json", "").replace("```", "").strip()
+            return json.loads(response)
+
         loaded_json = format_json_from_response(gpt_res)
+
+        # Check if the response is a valid JSON object
+        if not isinstance(loaded_json, dict):
+            raise ValueError("OpenAI response is not a valid JSON object.")
+        # Check if the response contains the expected keys
+        if not all(key in loaded_json for key in ["recommendations"]):
+            raise ValueError("OpenAI response is missing expected keys.")
+        # Log the formatted JSON response
+        print("Formatted JSON Response:", json.dumps(loaded_json, indent=4))
 
         # Store the response in the cache
         new_cache_entry = LLMCache(
@@ -611,11 +634,12 @@ def fetch_google_book_data(isbn):
     else:
         return jsonify({"error": "Error fetching data from Google Books API"}), response.status_code
 
-@app.route('/api/book_metadata/<title>', methods=['GET'])
-def fetch_book_meta(title):
+@app.route('/api/book_metadata/<title>/<author>', methods=['GET'])
+def fetch_book_meta(title, author):
     # Format the title by replacing spaces with '+' and encoding special characters
     formatted_title = title.replace("&", "+").replace("amp;", "")
-    print(formatted_title)
+    formatted_author = author.replace(" ", "+")
+    print(formatted_title, author)
     # Default to page 1
     page = int(request.args.get('page', 1))
     # Number of results per page
@@ -624,8 +648,9 @@ def fetch_book_meta(title):
     start = (page - 1) * rows_per_page
 
     # Fetch book details from Archive.org
-    search_string = f"{ia_books_collection} AND title:\"{formatted_title}\" AND language:\"eng\""
+    search_string = f"collection:\"{ia_books_collection}\" AND description:\"{formatted_author}\" AND language:\"eng\""
     # convert to list
+    print(search_string)
     search_results = list(search_items(search_string))
 
     # Slice results for pagination
@@ -715,6 +740,14 @@ def add_book_to_profile():
 
     # Check if the user already has this book in their profile
     user_book = db.session.query(users_books).filter_by(user_id=current_user.id, book_id=book.id).first()
+    if not user_book:
+        # Add the book to the user's profile
+        db.session.execute(users_books.insert().values(user_id=current_user.id, book_id=book.id))
+        db.session.commit()
+        return jsonify({"message": "Book added to profile successfully"}), 200
+    else:
+        return jsonify({"message": "Book already exists in the user's profile"}), 200
+
     if not user_book:
         # Add the book to the user's profile
         db.session.execute(users_books.insert().values(user_id=current_user.id, book_id=book.id))
