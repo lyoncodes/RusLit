@@ -3,6 +3,7 @@ from flask import render_template, request, redirect, url_for, jsonify, Blueprin
 from flask_login import login_user, logout_user, login_required, LoginManager, current_user
 from . import app, db  # Import db
 from openai import OpenAI
+from agents import Agent, Runner, WebSearchTool
 from dotenv import load_dotenv
 from .models import User, Book, Profile, users_books, friendships, LLMCache  # Import the User, Book models and linking table
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -15,6 +16,23 @@ import pymarc
 from authlib.integrations.flask_client import OAuth
 from concurrent.futures import ThreadPoolExecutor, as_completed  # Add import for ThreadPoolExecutor
 from internetarchive import get_item, search_items, get_files
+from .utils import get_user_books  # Import the helper function
+from .config import (
+    OPENAI_API_KEY,
+    OPENAI_4O_ENDPOINT,
+    GOOGLE_API_KEY,
+    GOOGLE_BOOKS_ENDPOINT,
+    PW_ENCODE,
+    PW_HASH_METHOD,
+    IA_BOOKS_COLLECTION,
+    GOOGLE_CONSUMER_KEY,
+    GOOGLE_CONSUMER_SECRET,
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
+    GOOGLE_BASE_URL,
+    GOOGLE_ACCESS_TOKEN_URL,
+    GOOGLE_AUTH_ENDPOINT,
+)
 
 
 login_manager = LoginManager()
@@ -23,29 +41,81 @@ login_manager.init_app(app)
 # Load environment variables from .env file
 load_dotenv()
 user_bp = Blueprint('user_bp', __name__)
-token = os.environ.get("OPENAI_API_KEY")
-endpoint = os.environ.get("OPENAI_4o_ENDPOINT")
-books_token = os.environ.get("GOOGLE_API_KEY")
-books_endpoint = os.environ.get("GOOGLE_BOOKS_ENDPOINT")
-pw_encode = os.environ.get("PW_ENCODE")
-pw_hash = os.environ.get("PW_HASH_METHOD")
-# archives
-ia_books_collection = os.environ.get("IA_BOOKS")
 
-#google creds
-google_consumer_key = os.environ.get("GOOGLE_CONSUMER_KEY")
-google_consumer_secret = os.environ.get("GOOGLE_CONSUMER_SECRET")
-google_client_id = os.environ.get("GOOGLE_CLIENT_ID")
-google_client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
-google_base_url = os.environ.get("GOOGLE_BASE_URL")
-google_access_token_url = os.environ.get("GOOGLE_ACCESS_TOKEN_URL")
-google_auth_endpoint = os.environ.get("GOOGLE_AUTH_ENDPOINT")
+# Use variables from config.py
+token = OPENAI_API_KEY
+endpoint = OPENAI_4O_ENDPOINT
+books_token = GOOGLE_API_KEY
+books_endpoint = GOOGLE_BOOKS_ENDPOINT
+pw_encode = PW_ENCODE
+pw_hash = PW_HASH_METHOD
+ia_books_collection = IA_BOOKS_COLLECTION
 
+# Google credentials
+google_consumer_key = GOOGLE_CONSUMER_KEY
+google_consumer_secret = GOOGLE_CONSUMER_SECRET
+google_client_id = GOOGLE_CLIENT_ID
+google_client_secret = GOOGLE_CLIENT_SECRET
+google_base_url = GOOGLE_BASE_URL
+google_access_token_url = GOOGLE_ACCESS_TOKEN_URL
+google_auth_endpoint = GOOGLE_AUTH_ENDPOINT
+
+#agent tools
+def handle_pdf(file):
+    print('wow!')
+    # Handle PDF file processing here
+    # For example, you can use PyMuPDF or pdfminer to extract text from the PDF
+    pass
+
+def process_csv(file):
+    file_content = ""
+    if file:
+        if file.filename.endswith('.csv'):
+            try:
+                file_content = []
+                # Decode the binary stream to text
+                csv_reader = csv.reader(file.stream.read().decode(pw_encode).splitlines())
+                for row in csv_reader:
+                    if len(row) >= 2:  # Ensure row has at least title and author
+                        file_content.append(f"{row[0]} by {row[1]}")
+                file_content = ', '.join(file_content)
+                return file_content
+            except Exception as e:
+                print(f"Error processing CSV file: {e}")
+                return jsonify({"error": "Failed to process CSV file", "details": str(e)}), 400
 #models
 model_name = "gpt-4o"
 client = OpenAI(
     base_url=endpoint,
     api_key=token,
+)
+search_agent = Agent(
+    name="search_agent",
+    instructions="An agent that searches the web for full epub versions of the isbns provided in the query.",
+    tools=[
+        WebSearchTool()
+    ],
+)
+file_agent = Agent(
+    name="file_agent",
+    instructions="An agent that examines records in the application database, as well as .pdf, text, epub, and other media types to find supporting information for a user's argument.",
+    tools=[
+        WebSearchTool(),
+        handle_pdf,
+        process_csv,
+        get_user_books
+    ]
+)
+book_agent = Agent(
+    name="book_agent",
+    instructions="ou are an expert in world Literature, your role is to offer 50 relevant, specified recommendations based on the data you receive from the user's query. Diversify your selections from authors from multiple countries, and provide brief explanations for how each book relates to the user data. Always provide your entire response in a JSON object, with your suggestions always contained in an array of objects named 'recommendations', with each object's properties being title, author, description, and isbn.",
+    handoffs=[
+        search_agent,
+        file_agent
+    ],
+    tools=[
+        WebSearchTool()
+    ]
 )
 # OAuth
 oauth = OAuth(app)
@@ -206,6 +276,7 @@ def profile(id):
     user = User.query.get(id)
     profile = Profile.query.filter_by(user_id=id).first()
     
+    # Directly query the users_books table
     user_books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == id).all()
 
     users_friends = db.session.query(User).join(friendships, User.id == friendships.c.friend_id).filter(friendships.c.user_id == id).all()
@@ -223,22 +294,6 @@ def profile(id):
         political = request.form.get('political') == 'on'
         nihilistic = request.form.get('nihilistic') == 'on'
         ethical = request.form.get('ethical') == 'on'
-        mbti_istj = request.form.get('istj') == 'on'
-        mbti_isfj = request.form.get('isfj') == 'on'
-        mbti_infj = request.form.get('infj') == 'on'
-        mbti_intj = request.form.get('intj') == 'on'
-        mbti_istp = request.form.get('istp') == 'on'
-        mbti_isfp = request.form.get('isfp') == 'on'
-        mbti_infp = request.form.get('infp') == 'on'
-        mbti_intp = request.form.get('intp') == 'on'
-        mbti_estp = request.form.get('estp') == 'on'
-        mbti_esfp = request.form.get('esfp') == 'on'
-        mbti_enfp = request.form.get('enfp') == 'on'
-        mbti_entp = request.form.get('entp') == 'on'
-        mbti_estj = request.form.get('estj') == 'on'
-        mbti_esfj = request.form.get('esfj') == 'on'
-        mbti_enfj = request.form.get('enfj') == 'on'
-        mbti_entj = request.form.get('entj') == 'on'
         
         if profile:
             profile.genre_novel = novel
@@ -246,6 +301,7 @@ def profile(id):
             profile.genre_poetry = poetry
             profile.genre_satire = satire
             profile.genre_romance = romance
+            profile.genre_psychological = psychological
             profile.genre_spiritual = spiritual
             profile.interest_social = social
             profile.interest_psychological = psychological
@@ -253,22 +309,6 @@ def profile(id):
             profile.interest_political = political
             profile.interest_nihilistic = nihilistic
             profile.interest_ethical = ethical
-            profile.mbti_istj = mbti_istj
-            profile.mbti_isfj = mbti_isfj
-            profile.mbti_infj = mbti_infj
-            profile.mbti_intj = mbti_intj
-            profile.mbti_istp = mbti_istp
-            profile.mbti_isfp = mbti_isfp
-            profile.mbti_infp = mbti_infp
-            profile.mbti_intp = mbti_intp
-            profile.mbti_estp = mbti_estp
-            profile.mbti_esfp = mbti_esfp
-            profile.mbti_enfp = mbti_enfp
-            profile.mbti_entp = mbti_entp
-            profile.mbti_estj = mbti_estj
-            profile.mbti_esfj = mbti_esfj
-            profile.mbti_enfj = mbti_enfj
-            profile.mbti_entj = mbti_entj
         else:
             profile = Profile(
                 user_id=current_user.id,
@@ -277,34 +317,20 @@ def profile(id):
                 genre_poetry=poetry,
                 genre_satire=satire,
                 genre_romance=romance,
-                interest_psychological=psychological,
-                interest_spiritual=spiritual,
+                genre_psychological=psychological,
+                genre_spiritual=spiritual,
                 interest_social=social,
+                interest_psychological=psychological,
                 interest_existential=existential,
                 interest_political=political,
                 interest_nihilistic=nihilistic,
-                interest_ethical=ethical,
-                mbti_istj=mbti_istj,
-                mbti_isfj=mbti_isfj,
-                mbti_infj=mbti_infj,
-                mbti_intj=mbti_intj,
-                mbti_istp=mbti_istp,
-                mbti_isfp=mbti_isfp,
-                mbti_infp=mbti_infp,
-                mbti_intp=mbti_intp,
-                mbti_estp=mbti_estp,
-                mbti_esfp=mbti_esfp,
-                mbti_enfp=mbti_enfp,
-                mbti_entp=mbti_entp,
-                mbti_estj=mbti_estj,
-                mbti_esfj=mbti_esfj,
-                mbti_enfj=mbti_enfj,
-                mbti_entj=mbti_entj
+                interest_ethical=ethical
             )
             db.session.add(profile)
         db.session.commit()
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('profile', id=current_user.id))
+    
     if request.method == 'GET':
         searchString = request.args.get('searchString')
         search_results = None
@@ -325,8 +351,7 @@ def profile(id):
             else:
                 flash('Error fetching data from Google Books API', 'danger')
         if search_results:
-            # Limit the number of search results to 20
-            search_results = search_results[:20]
+            search_results = search_results[:20]  # Limit the number of search results to 20
         else:
             search_results = []
 
@@ -342,7 +367,6 @@ def profile(id):
         else:
             return {"error": "User not found"}, 404
 
-
 @app.route('/profile_list', methods=['GET'])
 @login_required
 def profile_search():
@@ -355,260 +379,192 @@ def profile_search():
      )
 
 @app.route('/submit_form', methods=['POST'])
-def submit_form():
-    # Process the form data here
-    # capture form data
-    form_data = request.form.to_dict()
-    
-    # --- UPLODADED CUSTOM .TXT FILE HANDLING --- #
-    # We should change this to just create user books from the passed titles, as user books can be processed by the query engine
-    # capture file data if file uploaded
-    file = request.files.get('file')
-    
-    # Save the file if it exists and process its content
-    file_content = ""
-    if file:
-        if file.filename.endswith('.csv'):
-            try:
-                file_content = []
-                # Decode the binary stream to text
-                csv_reader = csv.reader(file.stream.read().decode(pw_encode).splitlines())
-                for row in csv_reader:
-                    if len(row) >= 2:  # Ensure row has at least title and author
-                        file_content.append(f"{row[0]} by {row[1]}")
-                file_content = ', '.join(file_content)
-            except Exception as e:
-                print(f"Error processing CSV file: {e}")
-                return jsonify({"error": "Failed to process CSV file", "details": str(e)}), 400
-        else:
-            # Handle other file types if necessary
-            pass
-    # --- END FILE HANDLING --- #
-
-
-    # Get the user's internal bookshelf
-    user_books = []
-    if current_user.is_authenticated:
-        user_books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == current_user.id).all()
-        user_books = ', '.join([f"{book.title} by {book.author}" for book in user_books])
-    
-    # build_query_text builds a prompt based off form & user data
-    def build_query_text(form_data, file_content, profile):
-        genre_tags = []
-        realm_tags = []
-        mbpti_tags = []
-        philosophy_tags = []
-        prompt = ""
-        
-        # genres
-        if profile.genre_novel:
-            genre_tags.append("Novels")
-        if profile.genre_short_story:
-            genre_tags.append("Short Stories")
-        if profile.genre_poetry:
-            genre_tags.append("Poetry")
-        if profile.genre_satire:
-            genre_tags.append("Satire")
-        
-        if len(genre_tags):
-            if (len(genre_tags) == 1):
-                prompt += f"Recommend a list of {genre_tags[0]}"
-            elif (len(genre_tags) == 2):
-                prompt += f"Recommend a list of {genre_tags[0]} and {genre_tags[1]}"
-            else:
-                genre_tags[len(genre_tags) - 1] = f"and {genre_tags[len(genre_tags) - 1]}"
-                prompt += f"Recommend a list of {', '.join(genre_tags)}"
-        else:
-            prompt += "Recommend a list of literature"
-
-        # mbti
-        if profile.mbti_istj:
-            mbpti_tags.append("ISTJ")
-        if profile.mbti_isfj:
-            mbpti_tags.append("ISFJ")
-        if profile.mbti_infj:
-            mbpti_tags.append("INFJ")
-        if profile.mbti_intj:
-            mbpti_tags.append("INTJ")
-        if profile.mbti_istp:
-            mbpti_tags.append("ISTP")
-        if profile.mbti_isfp:
-            mbpti_tags.append("ISFP")
-        if profile.mbti_infp:
-            mbpti_tags.append("INFP")
-        if profile.mbti_intp:
-            mbpti_tags.append("INTP")
-        if profile.mbti_estp:
-            mbpti_tags.append("ESTP")
-        if profile.mbti_esfp:
-            mbpti_tags.append("ESFP")
-        if profile.mbti_enfp:
-            mbpti_tags.append("ENFP")
-        if profile.mbti_entp:
-            mbpti_tags.append("ENTP")
-        if profile.mbti_estj:
-            mbpti_tags.append("ESTJ")
-        if profile.mbti_esfj:
-            mbpti_tags.append("ESFJ")
-        if profile.mbti_enfj:
-            mbpti_tags.append("ENFJ")
-        if profile.mbti_entj:
-            mbpti_tags.append("ENTJ")
-        
-        if len(mbpti_tags):
-            if (len(mbpti_tags) == 1):
-                prompt += f" for readers with an MBTI personality type of {mbpti_tags[0]}."
-            elif len(mbpti_tags) == 2:
-                prompt += f" for readers with MBTI personality types of {mbpti_tags[0]} and {mbpti_tags[1]}."
-            else:
-                mbpti_tags[len(mbpti_tags) - 1] = f"and {mbpti_tags[len(mbpti_tags) - 1]}"
-                prompt += f" for readers with MBTI personality types of {', '.join(mbpti_tags)}."
-
-        #realms & disciplines
-        if profile.interest_social:
-            philosophy_tags.append("sociological")
-        if profile.interest_existential:
-            philosophy_tags.append("existential")
-        if profile.interest_political:
-            philosophy_tags.append("political")
-        if profile.interest_nihilistic:
-            philosophy_tags.append("nihilistic")
-        if profile.interest_ethical:
-            philosophy_tags.append("ethical")
-        
-        if profile.genre_romance:    
-            realm_tags.append("romantic")
-        if profile.genre_psychological:
-            realm_tags.append("psychological")
-        if profile.genre_spiritual:
-            realm_tags.append("spiritual")
-
-        if (len(realm_tags) & len(philosophy_tags)):
-            tags = realm_tags + philosophy_tags
-            prompt += f" Focus results on works with {', '.join(tags)} themes"
-        elif len(realm_tags) & len(philosophy_tags) == 0:
-            prompt += f" Focus results on works that are {', '.join(realm_tags)} in nature"
-        elif len(philosophy_tags) & len(realm_tags) == 0:
-            prompt += f" Focus results on works with {', '.join(philosophy_tags)} themes"
-        
-        if form_data.get('realm'):
-            prompt += f" and {form_data['realm']}"
-        
-        prompt += ","
-        
-        # reading time
-        if form_data.get('mediaLength'):
-            if form_data['mediaLength'] == "short":
-                duration = "between 1 to 3 hours"
-            if form_data['mediaLength'] == "medium":
-                duration = "between 4 to 10 hours"
-            if form_data['mediaLength'] == "long":
-                duration = "longer than 10 hours"
-            prompt += f" which should take an advanced reader {duration} to complete"
-
-        prompt += "."
-
-
-        if form_data.get('includeBookshelf'):
-            prompt += f" The reader's bookshelf contains {user_books}, so base your results on these titles but exclude them from your recommendations."
-
-        # if file_content:
-        #     prompt += f" {file_content}."
-
-        
-        prompt += " Thank you!"   
-        
-        # Add any additional form data to the prompt
-        return prompt
-    
-    # format_json_from_response converts the response to a JSON object
-    def format_json_from_response(response):
-        if response.startswith("```json"):
-            response = response.replace("```json", "").replace("```", "").strip()
-        print(response)
-        return json.loads(response)
-    
-    if current_user.is_authenticated:
-        profile = db.session.query(Profile).filter_by(user_id=current_user.id).first()
-
-    formatted_content = build_query_text(form_data, file_content, profile)
-    print(formatted_content)
-
-    # Check if the prompt already exists in the cache
-    cached_response = db.session.query(LLMCache).filter_by(prompt=formatted_content).first()
-    if cached_response:
-        print("Cache hit for prompt.")
-        return jsonify({
-            "response": json.loads(cached_response.response),  # Return cached response
-            "file_data": file_content
-        })
-
+async def submit_form():
     try:
-        # Create a request to the client.chat.completions object
-        response = client.chat.completions.create(
-            model=model_name,
-            messages=[
-                {
-                    "role": "system", 
-                    "content": "You are an expert in world Literature bot, your role is to offer 50 relevant, specified recommendations. Diversify your selections from authors from multiple countries, and provide brief explanations for how each book relates to the user's query. Always provide your entire response in a JSON object, with your suggestions always contained in an array of objects named 'recommendations', with each object's properties being title, author, description, and isbn. Thank you for your help!",
-                    "metadata": {
-                        "tags": ["World Literature", "Recommendations"]
-                    },
-                },
-                {
-                    "role": "user", 
-                    "content": formatted_content
-                }
-            ],
-        )
+        # Process the form data here
+        form_data = request.form.to_dict()
 
-        # Log the raw response for debugging
-        print("Raw OpenAI Response:", response)
+        # Get the user's internal bookshelf
+        user_books = []
+        if current_user.is_authenticated:
+            user_books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == current_user.id).all()
+            user_books = ', '.join([f"{book.title} by {book.author}" for book in user_books])
+        
+        # build_query_text builds a prompt based off form & user data
+        def build_query_text(form_data, profile):
+            genre_tags = []
+            realm_tags = []
+            philosophy_tags = []
+            prompt = ""
+            
+            # genres
+            if profile.genre_novel:
+                genre_tags.append("Novels")
+            if profile.genre_short_story:
+                genre_tags.append("Short Stories")
+            if profile.genre_poetry:
+                genre_tags.append("Poetry")
+            if profile.genre_satire:
+                genre_tags.append("Satire")
+            
+            if len(genre_tags):
+                if (len(genre_tags) == 1):
+                    prompt += f"Recommend a list of {genre_tags[0]}"
+                elif (len(genre_tags) == 2):
+                    prompt += f"Recommend a list of {genre_tags[0]} and {genre_tags[1]}"
+                else:
+                    genre_tags[len(genre_tags) - 1] = f"and {genre_tags[len(genre_tags) - 1]}"
+                    prompt += f"Recommend a list of {', '.join(genre_tags)}"
+            else:
+                prompt += "Recommend a list of literature"
 
-        # Ensure the response contains choices
-        if not response.choices or not response.choices[0].message.content:
-            raise ValueError("OpenAI response is empty or malformed.")
+            #realms & disciplines
+            if profile.interest_social:
+                philosophy_tags.append("sociological")
+            if profile.interest_existential:
+                philosophy_tags.append("existential")
+            if profile.interest_political:
+                philosophy_tags.append("political")
+            if profile.interest_nihilistic:
+                philosophy_tags.append("nihilistic")
+            if profile.interest_ethical:
+                philosophy_tags.append("ethical")
+            
+            if profile.genre_romance:    
+                realm_tags.append("romantic")
+            if profile.genre_psychological:
+                realm_tags.append("psychological")
+            if profile.genre_spiritual:
+                realm_tags.append("spiritual")
 
-        # Extract and sanitize the response content
-        gpt_res = response.choices[0].message.content
+            if (len(realm_tags) & len(philosophy_tags)):
+                tags = realm_tags + philosophy_tags
+                prompt += f" Focus results on works with {', '.join(tags)} themes"
+            elif len(realm_tags) & len(philosophy_tags) == 0:
+                prompt += f" Focus results on works that are {', '.join(realm_tags)} in nature"
+            elif len(philosophy_tags) & len(realm_tags) == 0:
+                prompt += f" Focus results on works with {', '.join(philosophy_tags)} themes"
+            
+            if form_data.get('realm'):
+                prompt += f" and {form_data['realm']}"
+            
+            prompt += ","
+            
+            # reading time
+            if form_data.get('mediaLength'):
+                if form_data['mediaLength'] == "short":
+                    duration = "between 1 to 3 hours"
+                if form_data['mediaLength'] == "medium":
+                    duration = "between 4 to 10 hours"
+                if form_data['mediaLength'] == "long":
+                    duration = "longer than 10 hours"
+                prompt += f" which should take an advanced reader {duration} to complete"
 
-        # Log the response content
-        print("OpenAI Response Content:", gpt_res)
+            prompt += "."
 
-        # Sanitize and parse the response
+
+            if form_data.get('includeBookshelf'):
+                prompt += f" The reader's bookshelf contains {user_books}, so base your results on these titles but exclude them from your recommendations."
+
+            
+            prompt += " Thank you!"   
+            
+            # Add any additional form data to the prompt
+            return prompt
+
         def format_json_from_response(response):
-            # Convert non-JSON formatted response to JSON
             if response.startswith("```json"):
                 response = response.replace("```json", "").replace("```", "").strip()
+            print(response)
             return json.loads(response)
+        
+        if current_user.is_authenticated:
+            profile = db.session.query(Profile).filter_by(user_id=current_user.id).first()
 
-        loaded_json = format_json_from_response(gpt_res)
+        formatted_content = build_query_text(form_data, file_content, profile)
 
-        # Check if the response is a valid JSON object
-        if not isinstance(loaded_json, dict):
-            raise ValueError("OpenAI response is not a valid JSON object.")
-        # Check if the response contains the expected keys
-        if not all(key in loaded_json for key in ["recommendations"]):
-            raise ValueError("OpenAI response is missing expected keys.")
-        # Log the formatted JSON response
-        print("Formatted JSON Response:", json.dumps(loaded_json, indent=4))
+        # Check if the prompt already exists in the cache
+        cached_response = db.session.query(LLMCache).filter_by(prompt=formatted_content).first()
+        if cached_response:
+            print("Cache hit for prompt.")
+            return jsonify({
+                "response": json.loads(cached_response.response),  # Return cached response
+                "file_data": file_content
+            })
 
-        # Store the response in the cache
-        new_cache_entry = LLMCache(
-            prompt=formatted_content,
-            response=json.dumps(loaded_json)
-        )
-        db.session.add(new_cache_entry)
-        db.session.commit()
+        try:
+            # Create a request to the client.chat.completions object
+            # test_res = await Runner.run_sync(book_agent, input(formatted_content))
+            # print(test_res.final_output)
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are an expert in world Literature bot, your role is to offer 50 relevant, specified recommendations. Diversify your selections from authors from multiple countries, and provide brief explanations for how each book relates to the user's query. Always provide your entire response in a JSON object, with your suggestions always contained in an array of objects named 'recommendations', with each object's properties being title, author, description, and isbn. Thank you for your help!",
+                        "metadata": {
+                            "tags": ["World Literature", "Recommendations"]
+                        },
+                    },
+                    {
+                        "role": "user", 
+                        "content": formatted_content
+                    }
+                ],
+            )
 
-        return jsonify({
-            "response": loaded_json,
-            "file_data": file_content
-        })
+            # Log the raw response for debugging
+            # print("Raw OpenAI Response:", response)
+
+            # Ensure the response contains choices
+            if not response.choices or not response.choices[0].message.content:
+                raise ValueError("OpenAI response is empty or malformed.")
+
+            # Extract and sanitize the response content
+            gpt_res = response.choices[0].message.content
+
+            # Log the response content
+            print("OpenAI Response Content:", gpt_res)
+
+            # Sanitize and parse the response
+            def format_json_from_response(response):
+                # Convert non-JSON formatted response to JSON
+                if response.startswith("```json"):
+                    response = response.replace("```json", "").replace("```", "").strip()
+                return json.loads(response)
+
+            loaded_json = format_json_from_response(gpt_res)
+
+            # Check if the response is a valid JSON object
+            if not isinstance(loaded_json, dict):
+                raise ValueError("OpenAI response is not a valid JSON object.")
+            # Check if the response contains the expected keys
+            if not all(key in loaded_json for key in ["recommendations"]):
+                raise ValueError("OpenAI response is missing expected keys.")
+            # Log the formatted JSON response
+            print("Formatted JSON Response:", json.dumps(loaded_json, indent=4))
+
+            # Store the response in the cache
+            new_cache_entry = LLMCache(
+                prompt=formatted_content,
+                response=json.dumps(loaded_json)
+            )
+            db.session.add(new_cache_entry)
+            db.session.commit()
+
+            return jsonify({
+                "response": loaded_json,
+                "file_data": file_content
+            })
+
+        except Exception as e:
+            print(f"Error fetching data from OpenAI: {e}")
+            return jsonify({"error": "Failed to fetch data from OpenAI", "details": str(e)}), 500
 
     except Exception as e:
-        print(f"Error fetching data from OpenAI: {e}")
-        return jsonify({"error": "Failed to fetch data from OpenAI", "details": str(e)}), 500
+        # Handle any errors that occur during execution
+        print(f"Error executing Runner.run: {e}")
+        return jsonify({"error": "Failed to execute Runner.run", "details": str(e)}), 500
 
 @app.route('/book_detail/<author>/<title>', methods=['GET'])
 def book_details(author, title):
@@ -639,7 +595,6 @@ def fetch_book_meta(title, author):
     # Format the title by replacing spaces with '+' and encoding special characters
     formatted_title = title.replace("&", "+").replace("amp;", "")
     formatted_author = author.replace(" ", "+")
-    print(formatted_title, author)
     # Default to page 1
     page = int(request.args.get('page', 1))
     # Number of results per page
@@ -665,13 +620,15 @@ def fetch_book_meta(title, author):
         isbn = metadata.get("isbn", "Unknown ISBN")
         if (isinstance(isbn, list) and len(isbn) > 0):
             isbn = isbn[1]
+        
 
         return {
             "title": metadata.get("title", "Unknown Title"),
             "creator": metadata.get("creator", "Unknown Creator"),
             "isbn": isbn,
             "identifier": metadata.get("identifier-access", "Unknown Identifier"),
-            "subject": metadata.get("subject", "Unknown Subject")
+            "subject": metadata.get("subject", "Unknown Subject"),
+            "pdf_available": metadata.get("pdf_module_version", "no .pdf")  # Include the PDF availability in the response
         }
     
     items = []
@@ -740,14 +697,6 @@ def add_book_to_profile():
 
     # Check if the user already has this book in their profile
     user_book = db.session.query(users_books).filter_by(user_id=current_user.id, book_id=book.id).first()
-    if not user_book:
-        # Add the book to the user's profile
-        db.session.execute(users_books.insert().values(user_id=current_user.id, book_id=book.id))
-        db.session.commit()
-        return jsonify({"message": "Book added to profile successfully"}), 200
-    else:
-        return jsonify({"message": "Book already exists in the user's profile"}), 200
-
     if not user_book:
         # Add the book to the user's profile
         db.session.execute(users_books.insert().values(user_id=current_user.id, book_id=book.id))

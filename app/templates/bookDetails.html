@@ -55,11 +55,13 @@
                     const creator = item.creator || 'Unknown Creator';
                     const ia_url = item.identifier || 'No Link';
                     const isbn = item.isbn || 'No ISBN';
+                    const pdfAvailable = item.pdf_available ? 'Yes' : 'No';
                     const subjects = item.subject || [];
                     const subjectsHtml = getSubjects(subjects);
                     const div = document.createElement('div');
                     div.innerHTML = `<strong>${title}</strong> by ${creator}<br> 
                                     <strong>Subjects:</strong> ${subjectsHtml}<br>
+                                    <strong>PDF Available:</strong> ${pdfAvailable}<br>
                                     <a href="${ia_url}" target="_blank">View Edition on Archive</a><br>
                                     <strong>ISBN:</strong><a href="#" class="isbn-link" data-isbn="${isbn}">${isbn}</a> <br>
                                     <hr>`;

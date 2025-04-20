@@ -58,22 +58,6 @@ class Profile(db.Model):
     genre_romance: Mapped[bool] = mapped_column(Boolean, default=False)
     genre_psychological: Mapped[bool] = mapped_column(Boolean, default=False)
     genre_spiritual: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_istj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_isfj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_infj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_intj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_istp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_isfp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_infp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_intp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_estp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_esfp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_enfp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_entp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_estj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_esfj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_enfj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_entj: Mapped[bool] = mapped_column(Boolean, default=False)
     interest_psychological: Mapped[bool] = mapped_column(Boolean, default=False)
     interest_spiritual: Mapped[bool] = mapped_column(Boolean, default=False)
     interest_social: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -110,6 +94,13 @@ friendships = Table(
     Column('created_at', db.DateTime, nullable=False, default=datetime.utcnow)
 )
 
+book_formats = Table(
+    'book_formats',
+    db.metadata,
+    Column('book_id', Integer, ForeignKey('books.id'), primary_key=True),
+    Column('format', String, primary_key=True)
+)
+
 class LLMCache(db.Model):
     __tablename__ = 'llm_cache'
 
@@ -120,6 +111,7 @@ class LLMCache(db.Model):
 
     def __repr__(self):
         return f"<LLMCache id={self.id} prompt={self.prompt[:30]}...>"
+
 
 # Export user_books
 __all__ = ['User', 'Book', 'Profile', 'users_books', 'users_profiles', 'LLMCache']
