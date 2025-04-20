@@ -380,191 +380,173 @@ def profile_search():
 
 @app.route('/submit_form', methods=['POST'])
 async def submit_form():
-    try:
-        # Process the form data here
-        form_data = request.form.to_dict()
+    # Process the form data here
+    form_data = request.form.to_dict()
 
-        # Get the user's internal bookshelf
-        user_books = []
-        if current_user.is_authenticated:
-            user_books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == current_user.id).all()
-            user_books = ', '.join([f"{book.title} by {book.author}" for book in user_books])
-        
-        # build_query_text builds a prompt based off form & user data
-        def build_query_text(form_data, profile):
-            genre_tags = []
-            realm_tags = []
-            philosophy_tags = []
-            prompt = ""
-            
-            # genres
-            if profile.genre_novel:
-                genre_tags.append("Novels")
-            if profile.genre_short_story:
-                genre_tags.append("Short Stories")
-            if profile.genre_poetry:
-                genre_tags.append("Poetry")
-            if profile.genre_satire:
-                genre_tags.append("Satire")
-            
-            if len(genre_tags):
-                if (len(genre_tags) == 1):
-                    prompt += f"Recommend a list of {genre_tags[0]}"
-                elif (len(genre_tags) == 2):
-                    prompt += f"Recommend a list of {genre_tags[0]} and {genre_tags[1]}"
-                else:
-                    genre_tags[len(genre_tags) - 1] = f"and {genre_tags[len(genre_tags) - 1]}"
-                    prompt += f"Recommend a list of {', '.join(genre_tags)}"
+    # Get the user's internal bookshelf
+    user_books = []
+    if current_user.is_authenticated:
+        user_books = db.session.query(Book).join(users_books, Book.id == users_books.c.book_id).filter(users_books.c.user_id == current_user.id).all()
+        user_books = ', '.join([f"{book.title} by {book.author}" for book in user_books])
+
+    # build_query_text builds a prompt based off form & user data
+    def build_query_text(form_data, profile):
+        genre_tags = []
+        realm_tags = []
+        philosophy_tags = []
+        prompt = ""
+
+        # genres
+        if profile.genre_novel:
+            genre_tags.append("Novels")
+        if profile.genre_short_story:
+            genre_tags.append("Short Stories")
+        if profile.genre_poetry:
+            genre_tags.append("Poetry")
+        if profile.genre_satire:
+            genre_tags.append("Satire")
+
+        if len(genre_tags):
+            if len(genre_tags) == 1:
+                prompt += f"Recommend a list of {genre_tags[0]}"
+            elif len(genre_tags) == 2:
+                prompt += f"Recommend a list of {genre_tags[0]} and {genre_tags[1]}"
             else:
-                prompt += "Recommend a list of literature"
+                genre_tags[len(genre_tags) - 1] = f"and {genre_tags[len(genre_tags) - 1]}"
+                prompt += f"Recommend a list of {', '.join(genre_tags)}"
+        else:
+            prompt += "Recommend a list of literature"
 
-            #realms & disciplines
-            if profile.interest_social:
-                philosophy_tags.append("sociological")
-            if profile.interest_existential:
-                philosophy_tags.append("existential")
-            if profile.interest_political:
-                philosophy_tags.append("political")
-            if profile.interest_nihilistic:
-                philosophy_tags.append("nihilistic")
-            if profile.interest_ethical:
-                philosophy_tags.append("ethical")
-            
-            if profile.genre_romance:    
-                realm_tags.append("romantic")
-            if profile.genre_psychological:
-                realm_tags.append("psychological")
-            if profile.genre_spiritual:
-                realm_tags.append("spiritual")
+        # realms & disciplines
+        if profile.interest_social:
+            philosophy_tags.append("sociological")
+        if profile.interest_existential:
+            philosophy_tags.append("existential")
+        if profile.interest_political:
+            philosophy_tags.append("political")
+        if profile.interest_nihilistic:
+            philosophy_tags.append("nihilistic")
+        if profile.interest_ethical:
+            philosophy_tags.append("ethical")
 
-            if (len(realm_tags) & len(philosophy_tags)):
-                tags = realm_tags + philosophy_tags
-                prompt += f" Focus results on works with {', '.join(tags)} themes"
-            elif len(realm_tags) & len(philosophy_tags) == 0:
-                prompt += f" Focus results on works that are {', '.join(realm_tags)} in nature"
-            elif len(philosophy_tags) & len(realm_tags) == 0:
-                prompt += f" Focus results on works with {', '.join(philosophy_tags)} themes"
-            
-            if form_data.get('realm'):
-                prompt += f" and {form_data['realm']}"
-            
-            prompt += ","
-            
-            # reading time
-            if form_data.get('mediaLength'):
-                if form_data['mediaLength'] == "short":
-                    duration = "between 1 to 3 hours"
-                if form_data['mediaLength'] == "medium":
-                    duration = "between 4 to 10 hours"
-                if form_data['mediaLength'] == "long":
-                    duration = "longer than 10 hours"
-                prompt += f" which should take an advanced reader {duration} to complete"
+        if profile.genre_romance:
+            realm_tags.append("romantic")
+        if profile.genre_psychological:
+            realm_tags.append("psychological")
+        if profile.genre_spiritual:
+            realm_tags.append("spiritual")
 
-            prompt += "."
+        if len(realm_tags) and len(philosophy_tags):
+            tags = realm_tags + philosophy_tags
+            prompt += f" Focus results on works with {', '.join(tags)} themes"
+        elif len(realm_tags) and len(philosophy_tags) == 0:
+            prompt += f" Focus results on works that are {', '.join(realm_tags)} in nature"
+        elif len(philosophy_tags) and len(realm_tags) == 0:
+            prompt += f" Focus results on works with {', '.join(philosophy_tags)} themes"
 
+        if form_data.get('realm'):
+            prompt += f" and {form_data['realm']}"
 
-            if form_data.get('includeBookshelf'):
-                prompt += f" The reader's bookshelf contains {user_books}, so base your results on these titles but exclude them from your recommendations."
+        prompt += ","
 
-            
-            prompt += " Thank you!"   
-            
-            # Add any additional form data to the prompt
-            return prompt
+        # reading time
+        if form_data.get('mediaLength'):
+            if form_data['mediaLength'] == "short":
+                duration = "between 1 to 3 hours"
+            if form_data['mediaLength'] == "medium":
+                duration = "between 4 to 10 hours"
+            if form_data['mediaLength'] == "long":
+                duration = "longer than 10 hours"
+            prompt += f" which should take an advanced reader {duration} to complete"
 
-        def format_json_from_response(response):
-            if response.startswith("```json"):
-                response = response.replace("```json", "").replace("```", "").strip()
-            print(response)
-            return json.loads(response)
-        
-        if current_user.is_authenticated:
-            profile = db.session.query(Profile).filter_by(user_id=current_user.id).first()
+        prompt += "."
 
-        formatted_content = build_query_text(form_data, file_content, profile)
+        if form_data.get('includeBookshelf'):
+            prompt += f" The reader's bookshelf contains {user_books}, so base your results on these titles but exclude them from your recommendations."
 
-        # Check if the prompt already exists in the cache
-        cached_response = db.session.query(LLMCache).filter_by(prompt=formatted_content).first()
-        if cached_response:
-            print("Cache hit for prompt.")
-            return jsonify({
-                "response": json.loads(cached_response.response),  # Return cached response
-                "file_data": file_content
-            })
+        prompt += " Thank you!"
 
-        try:
-            # Create a request to the client.chat.completions object
-            # test_res = await Runner.run_sync(book_agent, input(formatted_content))
-            # print(test_res.final_output)
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are an expert in world Literature bot, your role is to offer 50 relevant, specified recommendations. Diversify your selections from authors from multiple countries, and provide brief explanations for how each book relates to the user's query. Always provide your entire response in a JSON object, with your suggestions always contained in an array of objects named 'recommendations', with each object's properties being title, author, description, and isbn. Thank you for your help!",
-                        "metadata": {
-                            "tags": ["World Literature", "Recommendations"]
-                        },
+        # Add any additional form data to the prompt
+        return prompt
+
+    def format_json_from_response(response):
+        if response.startswith("```json"):
+            response = response.replace("```json", "").replace("```", "").strip()
+        print(response)
+        return json.loads(response)
+
+    if current_user.is_authenticated:
+        profile = db.session.query(Profile).filter_by(user_id=current_user.id).first()
+
+    formatted_content = build_query_text(form_data, profile)
+
+    # Check if the prompt already exists in the cache
+    cached_response = db.session.query(LLMCache).filter_by(prompt=formatted_content).first()
+    if cached_response:
+        print("Cache hit for prompt.")
+        return jsonify({
+            "response": json.loads(cached_response.response),  # Return cached response
+        })
+
+    try:
+        # Create a request to the client.chat.completions object
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are an expert in world Literature bot, your role is to offer 50 relevant, specified recommendations. Diversify your selections from authors from multiple countries, and provide brief explanations for how each book relates to the user's query. Always provide your entire response in a JSON object, with your suggestions always contained in an array of objects named 'recommendations', with each object's properties being title, author, description, and isbn. Thank you for your help!",
+                    "metadata": {
+                        "tags": ["World Literature", "Recommendations"]
                     },
-                    {
-                        "role": "user", 
-                        "content": formatted_content
-                    }
-                ],
-            )
+                },
+                {
+                    "role": "user",
+                    "content": formatted_content
+                }
+            ],
+        )
 
-            # Log the raw response for debugging
-            # print("Raw OpenAI Response:", response)
+        # Log the raw response for debugging
+        print("Raw OpenAI Response:", response)
 
-            # Ensure the response contains choices
-            if not response.choices or not response.choices[0].message.content:
-                raise ValueError("OpenAI response is empty or malformed.")
+        # Ensure the response contains choices
+        if not response.choices or not response.choices[0].message.content:
+            raise ValueError("OpenAI response is empty or malformed.")
 
-            # Extract and sanitize the response content
-            gpt_res = response.choices[0].message.content
+        # Extract and sanitize the response content
+        gpt_res = response.choices[0].message.content
 
-            # Log the response content
-            print("OpenAI Response Content:", gpt_res)
+        # Log the response content
+        print("OpenAI Response Content:", gpt_res)
 
-            # Sanitize and parse the response
-            def format_json_from_response(response):
-                # Convert non-JSON formatted response to JSON
-                if response.startswith("```json"):
-                    response = response.replace("```json", "").replace("```", "").strip()
-                return json.loads(response)
+        # Sanitize and parse the response
+        loaded_json = format_json_from_response(gpt_res)
 
-            loaded_json = format_json_from_response(gpt_res)
+        # Check if the response is a valid JSON object
+        if not isinstance(loaded_json, dict):
+            raise ValueError("OpenAI response is not a valid JSON object.")
+        # Check if the response contains the expected keys
+        if not all(key in loaded_json for key in ["recommendations"]):
+            raise ValueError("OpenAI response is missing expected keys.")
+        # Log the formatted JSON response
+        print("Formatted JSON Response:", json.dumps(loaded_json, indent=4))
 
-            # Check if the response is a valid JSON object
-            if not isinstance(loaded_json, dict):
-                raise ValueError("OpenAI response is not a valid JSON object.")
-            # Check if the response contains the expected keys
-            if not all(key in loaded_json for key in ["recommendations"]):
-                raise ValueError("OpenAI response is missing expected keys.")
-            # Log the formatted JSON response
-            print("Formatted JSON Response:", json.dumps(loaded_json, indent=4))
+        # Store the response in the cache
+        new_cache_entry = LLMCache(
+            prompt=formatted_content,
+            response=json.dumps(loaded_json)
+        )
+        db.session.add(new_cache_entry)
+        db.session.commit()
 
-            # Store the response in the cache
-            new_cache_entry = LLMCache(
-                prompt=formatted_content,
-                response=json.dumps(loaded_json)
-            )
-            db.session.add(new_cache_entry)
-            db.session.commit()
-
-            return jsonify({
-                "response": loaded_json,
-                "file_data": file_content
-            })
-
-        except Exception as e:
-            print(f"Error fetching data from OpenAI: {e}")
-            return jsonify({"error": "Failed to fetch data from OpenAI", "details": str(e)}), 500
+        return jsonify({
+            "response": loaded_json,
+        })
 
     except Exception as e:
-        # Handle any errors that occur during execution
-        print(f"Error executing Runner.run: {e}")
-        return jsonify({"error": "Failed to execute Runner.run", "details": str(e)}), 500
+        print(f"Error fetching data from OpenAI: {e}")
+        return jsonify({"error": "Failed to fetch data from OpenAI", "details": str(e)}), 500
 
 @app.route('/book_detail/<author>/<title>', methods=['GET'])
 def book_details(author, title):
