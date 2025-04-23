@@ -48,7 +48,7 @@
         {% if books and books|length > 0 %}
         <ul>
             {% for book in books %}
-            <li>
+            <li class="book-link" data-isbn="{{ book.isbn }}" data-book-author="{{ book.author }}" data-book-title="{{ book.title }}">
                 <strong>{{ book.title }}</strong> by {{ book.author }} (ISBN: {{ book.isbn }})
             </li>
             {% endfor %}
@@ -104,79 +104,10 @@
                 </div>
             </div>
             <div class="checkbox-section">
-                <h3>MBTI</h3>
-                <div class="checkbox-grid">
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="istj" name="istj" value="istj" {% if profile.mbti_istj %}checked{% endif %}>
-                        <label for="istj">ISTJ</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="isfj" name="isfj" value="isfj" {% if profile.mbti_isfj %}checked{% endif %}>
-                        <label for="isfj">ISFJ</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="infj" name="injf" value="injf" {% if profile.mbti_infj %}checked{% endif %}>
-                        <label for="infj">INFJ</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="intj" name="intj" value="intj" {% if profile.mbti_intj %}checked{% endif %}>
-                        <label for="intj">INTJ</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="istp" name="istp" value="ISTP" {% if profile.mbti_istp %}checked{% endif %}>
-                        <label for="istp">ISTP</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="isfp" name="isfp" value="ISFP" {% if profile.mbti_isfp %}checked{% endif %}>
-                        <label for="isfp">ISFP</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="infp" name="infp" value="INFP" {% if profile.mbti_infp %}checked{% endif %}>
-                        <label for="infp">INFP</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="intp" name="intp" value="INTP" {% if profile.mbti_intp %}checked{% endif %}>
-                        <label for="intp">INTP</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="estp" name="estp" value="ESTP" {% if profile.mbti_estp %}checked{% endif %}>
-                        <label for="estp">ESTP</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="esfp" name="esfp" value="ESFP" {% if profile.mbti_esfp %}checked{% endif %}>
-                        <label for="esfp">ESFP</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="enfp" name="enfp" value="ENFP" {% if profile.mbti_enfp %}checked{% endif %}>
-                        <label for="enfp">ENFP</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="entp" name="entp" value="ENTP" {% if profile.mbti_entp %}checked{% endif %}>
-                        <label for="entp">ENTP</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="estj" name="estj" value="ESTJ" {% if profile.mbti_estj %}checked{% endif %}>
-                        <label for="estj">ESTJ</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="esfj" name="esfj" value="ESFJ" {% if profile.mbti_esfj %}checked{% endif %}>
-                        <label for="esfj">ESFJ</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="enfj" name="enfj" value="ENFJ" {% if profile.mbti_enfj %}checked{% endif %}>
-                        <label for="enfj">ENFJ</label>
-                    </div>
-                    <div class="checkbox-item">
-                        <input type="checkbox" id="entj" name="entj" value="ENTJ" {% if profile.mbti_entj %}checked{% endif %}>
-                        <label for="entj">ENTJ</label>
-                    </div>
-                </div>
-            </div>
-            <div class="checkbox-section">
                 <h3>Interest</h3>
                 <div class="checkbox-grid">
                     <div class="checkbox-item">
-                        <input type="checkbox" id="psychological" name="psychological" {% if profile and profile.psychological %}checked{% endif %}>
+                        <input type="checkbox" id="psychological" name="psychological" {% if profile and profile.interest_psychological %}checked{% endif %}>
                         <label for="psychological">Psychological</label>
                     </div>
                     <div class="checkbox-item">
@@ -280,6 +211,13 @@
                     console.error('Error adding book to profile:', error);
                     alert('An error occurred while adding the book to your profile.');
                 }
+            });
+        });
+        document.querySelectorAll('.book-link').forEach(bookElement => {
+            bookElement.addEventListener('click', () => {
+                const author = bookElement.getAttribute('data-book-author');
+                const title = bookElement.getAttribute('data-book-title');
+                window.location.href = "{{ url_for('book_details', author=author, title=title) }}" + author + "/" + title;
             });
         });
     });

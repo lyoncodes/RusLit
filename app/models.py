@@ -35,8 +35,8 @@ class User(db.Model):
 class Book(db.Model):
     __tablename__ = 'books'
 
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    isbn: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    id: Mapped[str] = mapped_column(String, primary_key=True)  # Change id to String
+    isbn: Mapped[str] = mapped_column(String, unique=True, nullable=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
     author: Mapped[str] = mapped_column(String, nullable=False)
 
@@ -58,22 +58,6 @@ class Profile(db.Model):
     genre_romance: Mapped[bool] = mapped_column(Boolean, default=False)
     genre_psychological: Mapped[bool] = mapped_column(Boolean, default=False)
     genre_spiritual: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_istj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_isfj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_infj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_intj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_istp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_isfp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_infp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_intp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_estp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_esfp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_enfp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_entp: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_estj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_esfj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_enfj: Mapped[bool] = mapped_column(Boolean, default=False)
-    mbti_entj: Mapped[bool] = mapped_column(Boolean, default=False)
     interest_psychological: Mapped[bool] = mapped_column(Boolean, default=False)
     interest_spiritual: Mapped[bool] = mapped_column(Boolean, default=False)
     interest_social: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -84,6 +68,16 @@ class Profile(db.Model):
 
     def __repr__(self):
         return f"<Profile {self.user_id}>"
+
+class BookFormat(db.Model):
+    __tablename__ = 'book_formats'
+
+    book_id: Mapped[int] = mapped_column(Integer, ForeignKey('books.id'), primary_key=True)
+    format: Mapped[str] = mapped_column(String, primary_key=True)
+    url: Mapped[str] = mapped_column(String, nullable=False)  # Add the missing 'url' column
+
+    def __repr__(self):
+        return f"<BookFormat book_id={self.book_id} format={self.format}>"
 
 users_books = Table(
     'users_books',
@@ -108,6 +102,17 @@ friendships = Table(
     Column('created_at', db.DateTime, nullable=False, default=datetime.utcnow)
 )
 
+class LLMCache(db.Model):
+    __tablename__ = 'llm_cache'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    prompt: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    response: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<LLMCache id={self.id} prompt={self.prompt[:30]}...>"
+
 
 # Export user_books
-__all__ = ['User', 'Book', 'Profile', 'users_books', 'users_profiles']
+__all__ = ['User', 'Book', 'Profile', 'BookFormat', 'users_books', 'users_profiles', 'LLMCache']

@@ -1,0 +1,6 @@
+Error downloading MARC file: expected str, bytes or os.PathLike object, not File
+
+ error id: novelsoffyodordo12dost
+Error downloading MARC file: expected str, bytes or os.PathLike object, not File
+
+ error id: novelsoffyodordo12dost
