@@ -21,10 +21,10 @@
     const title = encodeURIComponent("{{ title }}");
     const author = encodeURIComponent("{{ author }}");
 
-    function getSubjects(subjects){
+    function getSubjects(subjects) {
         if (subjects && subjects.length > 0 && Array.isArray(subjects)) {
             const subjectList = subjects.map(subject => `<li>${subject}</li>`).join('');
-            return subjectList
+            return subjectList;
         } else {
             return 'No subjects available';
         }
@@ -32,6 +32,7 @@
 
     function fetchPage(page) {
         const url = `/api/book_metadata/${title}/${author}?page=${page}`;
+        console.log(`Fetching data from: ${url}`);  // Debug request URL
         fetch(url)
             .then(response => {
                 if (!response.ok) {
@@ -40,33 +41,61 @@
                 return response.json();
             })
             .then(data => {
-                // Debug log to inspect the data
-                console.log('Data received:', data);
+                console.log('Data received:', data);  // Debug response data
 
                 const container = document.getElementById('book-items');
-                // clear results
-                container.innerHTML = '';
-                if (!Array.isArray(data.items) || data.items.length === 0) {
-                    container.innerHTML = '<p>No editions found from internet archive collection.</p>';
-                    return;
+                container.innerHTML = ''; // Clear previous results
+
+                // Handle Internet Archive results
+                if (data.internet_archive && data.internet_archive.length > 0) {
+                    const iaHeader = document.createElement('h3');
+                    iaHeader.textContent = 'Internet Archive Results';
+                    container.appendChild(iaHeader);
+
+                    data.internet_archive.forEach(item => {
+                        const title = item.title || 'Unknown Title';
+                        const creator = item.creator || 'Unknown Creator';
+                        const ia_url = item.identifier || 'No Link';
+                        const isbn = item.isbn || 'No ISBN';
+                        const pdfAvailable = item.pdf_available ? 'Yes' : 'No';
+                        const subjects = item.subject || [];
+                        const subjectsHtml = getSubjects(subjects);
+                        const div = document.createElement('div');
+                        div.innerHTML = `<strong>${title}</strong> by ${creator}<br> 
+                                        <strong>Subjects:</strong> ${subjectsHtml}<br>
+                                        <strong>PDF Available:</strong> ${pdfAvailable}<br>
+                                        <a href="${ia_url}" target="_blank">View Edition on Archive</a><br>
+                                        <strong>ISBN:</strong><a href="#" class="isbn-link" data-isbn="${isbn}">${isbn}</a> <br>
+                                        <hr>`;
+                        container.appendChild(div);
+                    });
+                } else {
+                    const noIaResults = document.createElement('p');
+                    noIaResults.textContent = 'No editions found from Internet Archive.';
+                    container.appendChild(noIaResults);
                 }
-                data.items.forEach(item => {
-                    const title = item.title || 'Unknown Title';
-                    const creator = item.creator || 'Unknown Creator';
-                    const ia_url = item.identifier || 'No Link';
-                    const isbn = item.isbn || 'No ISBN';
-                    const pdfAvailable = item.pdf_available ? 'Yes' : 'No';
-                    const subjects = item.subject || [];
-                    const subjectsHtml = getSubjects(subjects);
-                    const div = document.createElement('div');
-                    div.innerHTML = `<strong>${title}</strong> by ${creator}<br> 
-                                    <strong>Subjects:</strong> ${subjectsHtml}<br>
-                                    <strong>PDF Available:</strong> ${pdfAvailable}<br>
-                                    <a href="${ia_url}" target="_blank">View Edition on Archive</a><br>
-                                    <strong>ISBN:</strong><a href="#" class="isbn-link" data-isbn="${isbn}">${isbn}</a> <br>
-                                    <hr>`;
-                    container.appendChild(div);
-                });
+
+                // Handle Local Database results
+                if (data.local_books && data.local_books.length > 0) {
+                    const localHeader = document.createElement('h3');
+                    localHeader.textContent = 'Local Database Results';
+                    container.appendChild(localHeader);
+
+                    data.local_books.forEach(book => {
+                        const title = book.title || 'Unknown Title';
+                        const author = book.author || 'Unknown Author';
+                        const isbn = book.isbn || 'No ISBN';
+                        const div = document.createElement('div');
+                        div.innerHTML = `<strong>${title}</strong> by ${author}<br>
+                                        <strong>ISBN:</strong><a href="#" class="isbn-link" data-isbn="${isbn}">${isbn}</a> <br>
+                                        <hr>`;
+                        container.appendChild(div);
+                    });
+                } else {
+                    const noLocalResults = document.createElement('p');
+                    noLocalResults.textContent = 'No editions found in the local database.';
+                    container.appendChild(noLocalResults);
+                }
 
                 // Add event listeners for ISBN links
                 document.querySelectorAll('.isbn-link').forEach(link => {

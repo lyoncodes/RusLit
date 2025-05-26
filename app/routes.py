@@ -108,7 +108,7 @@ file_agent = Agent(
 )
 book_agent = Agent(
     name="book_agent",
-    instructions="ou are an expert in world Literature, your role is to offer 50 relevant, specified recommendations based on the data you receive from the user's query. Diversify your selections from authors from multiple countries, and provide brief explanations for how each book relates to the user data. Always provide your entire response in a JSON object, with your suggestions always contained in an array of objects named 'recommendations', with each object's properties being title, author, description, and isbn.",
+    instructions="You are an expert in world Literature, your role is to offer 50 relevant, specified recommendations based on the data you receive from the user's query. Diversify your selections from authors from multiple countries, and provide brief explanations for how each book relates to the user data. Always provide your entire response in a JSON object, with your suggestions always contained in an array of objects named 'recommendations', with each object's properties being title, author, description, and isbn.",
     handoffs=[
         search_agent,
         file_agent
@@ -552,87 +552,6 @@ async def submit_form():
 def book_details(author, title):
     # render template
     return render_template('bookDetails.html', author=author, title=title)
-
-@app.route('/api/find/<isbn>', methods=['GET'])
-def fetch_google_book_data(isbn):
-    # Fetch book details from Google Books API
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(
-            requests.get, 
-            f"{books_endpoint}volumes/?q=isbn:{isbn}&key={books_token}"
-        )
-        response = future.result()
-    if response.status_code == 200:
-        search_results = response.json()
-        search_results = search_results.get('items', [])
-        for item in search_results:
-            item['volumeInfo']['description'] = item['volumeInfo'].get('description', 'No description available')
-        print(json.dumps(search_results, indent=4))
-        return jsonify(search_results)
-    else:
-        return jsonify({"error": "Error fetching data from Google Books API"}), response.status_code
-
-@app.route('/api/book_metadata/<title>/<author>', methods=['GET'])
-def fetch_book_meta(title, author):
-    # Format the title by replacing spaces with '+' and encoding special characters
-    formatted_title = title.replace("&", "+").replace("amp;", "")
-    formatted_author = author.replace(" ", "+")
-    # Default to page 1
-    page = int(request.args.get('page', 1))
-    # Number of results per page
-    rows_per_page = 10
-    # Calculate the starting index
-    start = (page - 1) * rows_per_page
-
-    # Fetch book details from Archive.org
-    search_string = f"collection:\"{ia_books_collection}\" AND description:\"{formatted_author}\" AND language:\"eng\""
-    # convert to list
-    print(search_string)
-    search_results = list(search_items(search_string))
-
-    # Slice results for pagination
-    paginated_results = search_results[start:start + rows_per_page]
-
-    def fetch_meta(id):
-        item = get_item(id)
-        metadata = item.metadata
-        # Pretty-print metadata to the console
-        print(json.dumps(metadata, indent=4))
-
-        isbn = metadata.get("isbn", "Unknown ISBN")
-        if (isinstance(isbn, list) and len(isbn) > 0):
-            isbn = isbn[1]
-        
-
-        return {
-            "title": metadata.get("title", "Unknown Title"),
-            "creator": metadata.get("creator", "Unknown Creator"),
-            "isbn": isbn,
-            "identifier": metadata.get("identifier-access", "Unknown Identifier"),
-            "subject": metadata.get("subject", "Unknown Subject"),
-            "pdf_available": metadata.get("pdf_module_version", "no .pdf")  # Include the PDF availability in the response
-        }
-    
-    items = []
-
-    # Concurrent data fetching
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = [executor.submit(fetch_meta, result['identifier']) for result in paginated_results]
-        for future in as_completed(futures):
-            try:
-                item = future.result()
-                items.append(item)
-            except Exception as e:
-                print(f"Error fetching metadata: {e}")
-                error_log.write(f"{time.ctime()}: Error fetching metadata: {e}\n")
-                error_log.flush()
-    
-    return jsonify({
-        "page": page,
-        "items": items,
-        "total_results": len(search_results),  # Total number of results
-        "total_pages": (len(search_results) + rows_per_page - 1) // rows_per_page  # Calculate total pages
-    })
 
 # --- User routes --- #
 @user_bp.route('/user/<email>', methods=['GET'])
